@@ -1,0 +1,19 @@
+var searchData=
+[
+  ['ranking_5fdos_5ffracos_0',['Ranking_Dos_Fracos',['../class_fabrica.html#ac6db87c7ca6fcccefae7a23fcbe5ec09',1,'Fabrica']]],
+  ['ranking_5fdos_5fmais_5ftrabalhadores_1',['Ranking_Dos_Mais_Trabalhadores',['../class_fabrica.html#a46d410abc684f7831ee1f5e1924bfaf2',1,'Fabrica']]],
+  ['registaravaria_2',['RegistarAvaria',['../class_dispositivo.html#ab191c0e40ca7fba2f650018a2e25bc92',1,'Dispositivo']]],
+  ['registartrabalho_3',['RegistarTrabalho',['../class_motor.html#abc37234580beadb562db45052a088e76',1,'Motor']]],
+  ['reiniciarconsumodia_4',['ReiniciarConsumoDia',['../class_fabrica.html#a949476cd2ee99e35d5dc86b4c6c261f6',1,'Fabrica::ReiniciarConsumoDia()'],['../class_motor.html#a901d040838faac1c928a3e277093751a',1,'Motor::ReiniciarConsumoDia()']]],
+  ['reiniciarmotor_5',['ReiniciarMotor',['../class_fabrica.html#a3353836365eebaa6e7e6fd618ff83410',1,'Fabrica']]],
+  ['relatorio_6',['Relatorio',['../class_fabrica.html#a3179e9b4eb8919da66af207d98f9bdf8',1,'Fabrica']]],
+  ['removermotor_7',['RemoverMotor',['../class_fabrica.html#abf72bcad06424a59982525d365f3820d',1,'Fabrica']]],
+  ['removerutilizador_8',['RemoverUtilizador',['../class_fabrica.html#a45ff76e5a322d9430f8e51b9b73f2f19',1,'Fabrica']]],
+  ['reparar_9',['Reparar',['../class_motor.html#a63779466975a488d3201dd5f2f79fe1e',1,'Motor']]],
+  ['repararavaria_10',['RepararAvaria',['../class_dispositivo.html#a4103ac252a3a8ac90e7de4d80b850737',1,'Dispositivo']]],
+  ['repor_11',['Repor',['../class_sensor.html#a0d370247a832c14d9dcb90bfbb2df789',1,'Sensor']]],
+  ['restart_12',['RESTART',['../class_motor.html#a28710eb57aed95a0938e1191749b39e6',1,'Motor']]],
+  ['restaurardefinicoes_13',['restaurarDefinicoes',['../class_fabrica.html#aa82f908e6e2e2ce725e8ae4f625105dc',1,'Fabrica']]],
+  ['restaurarterminal_14',['restaurarTerminal',['../main_8cpp.html#a2c684c36143cfc996029235efbc270b6',1,'main.cpp']]],
+  ['run_15',['RUN',['../class_motor.html#af5f093388a781a744465ccec4af19d46',1,'Motor']]]
+];

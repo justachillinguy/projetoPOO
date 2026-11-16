@@ -9,6 +9,15 @@
 
 using namespace std;
 
+/**
+ * @brief Videos de demonstracao abertos quando os sensores disparam.
+ *
+ * Estao na pasta videos/, junto do executavel.
+ */
+static const string VIDEO_FUMO   = "videos/aviso_fumo.mp4";
+static const string VIDEO_LUZ    = "videos/aviso_luz.mp4";
+static const string VIDEO_MISSEL = "videos/aviso_missel.mp4";
+
 Fabrica::Fabrica(User* ut)
     : utilizadorAtual(ut),
       campoX(0),
@@ -1642,7 +1651,7 @@ void Fabrica::VerificarAvisosSensores(list<Motor*>& desligados)
         else if (tipo == "FUMO")
         {
             list<Motor*> lm;
-            Aviso_Fumo(lm, "");
+            Aviso_Fumo(lm, VIDEO_FUMO);
             for (list<Motor*>::iterator im = lm.begin(); im != lm.end(); ++im)
             {
                 desligados.push_back(*im);
@@ -1650,11 +1659,11 @@ void Fabrica::VerificarAvisosSensores(list<Motor*>& desligados)
         }
         else if (tipo == "LUZ")
         {
-            Aviso_Luz("");
+            Aviso_Luz(VIDEO_LUZ);
         }
         else if (tipo == "MISSEL")
         {
-            Aviso_Missel("", "Estado.txt");
+            Aviso_Missel(VIDEO_MISSEL, "Estado.txt");
         }
         else if (tipo == "TEMPERATURA")
         {

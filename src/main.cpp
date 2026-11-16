@@ -130,6 +130,9 @@ static void executarMenu(Fabrica& fabrica)
     cout << "14. Gerar listagem HTML"                 << endl;
     cout << "15. Mudar utilizador atual"              << endl;
     cout << "16. Reiniciar motor (RESTART)"           << endl;
+    cout << "17. Aviso de FUMO (demo)"                << endl;
+    cout << "18. Aviso de LUZ (demo)"                 << endl;
+    cout << "19. Aviso de MISSEL (demo)"              << endl;
     cout << "S.  Sair do menu"                        << endl;
     cout << "======================================" << endl;
     cout << "Opcao: ";
@@ -249,6 +252,26 @@ static void executarMenu(Fabrica& fabrica)
         {
             fabrica.ReiniciarMotor(atoi(s.c_str()));
         }
+        return;
+    }
+
+    if (linha == "17")
+    {
+        cout << "[DEMO] Aviso de fumo..." << endl;
+        list<Motor*> lm;
+        fabrica.Aviso_Fumo(lm, "videos/aviso_fumo.mp4");
+        return;
+    }
+    if (linha == "18")
+    {
+        cout << "[DEMO] Aviso de luz..." << endl;
+        fabrica.Aviso_Luz("videos/aviso_luz.mp4");
+        return;
+    }
+    if (linha == "19")
+    {
+        cout << "[DEMO] Aviso de missel..." << endl;
+        fabrica.Aviso_Missel("videos/aviso_missel.mp4", "Estado.txt");
         return;
     }
 
