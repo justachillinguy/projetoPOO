@@ -538,7 +538,7 @@ int main()
         return 1;
     }
 
-    cout << "Fabrica carregada. Prima 'M' para o menu, 'Q' para sair." << endl;
+    cout << "Fabrica carregada. Prima ENTER (ou 'M') para o menu, 'Q' para sair." << endl;
     fabrica.Listar(cout);
 
     int minutoPasso  = 0;
@@ -551,7 +551,11 @@ int main()
         if (teclaPronta())
         {
             char tecla = lerTecla();
-            if (tecla == 'M' || tecla == 'm')
+            if (tecla == '\r' || tecla == '\n')
+            {
+                executarMenu(fabrica);
+            }
+            else if (tecla == 'M' || tecla == 'm')
             {
                 executarMenu(fabrica);
             }
