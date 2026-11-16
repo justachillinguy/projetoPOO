@@ -53,6 +53,10 @@ class MotorCombustao : public Motor
 
         virtual string GetTipo() const;
 
+        /**
+        * @brief Combustao aquece mais depressa: recebe 1.5x os graus.
+        */
+        virtual void Aquecer(double graus);
         /** @brief Devolve o intervalo VERDE deste tipo de motor. */
         IntervaloTemperatura GetIntervaloVerde() const;
         /** @brief Devolve o intervalo AMARELO deste tipo de motor. */
@@ -81,6 +85,11 @@ class MotorEletrico : public Motor
 
         virtual string GetTipo() const;
 
+        /**
+        * @brief Eletrico aquece devagar: recebe 0.5x os graus.
+        */
+        virtual void Aquecer(double graus);
+
         IntervaloTemperatura GetIntervaloVerde() const;
         IntervaloTemperatura GetIntervaloAmarelo() const;
         IntervaloTemperatura GetIntervaloVermelho() const;
@@ -105,6 +114,11 @@ class MotorInducao : public Motor
         virtual ~MotorInducao();
 
         virtual string GetTipo() const;
+
+        /**
+        * @brief Inducao aquece muito depressa: recebe 2x os graus.
+        */
+        virtual void Aquecer(double graus);
 
         IntervaloTemperatura GetIntervaloVerde() const;
         IntervaloTemperatura GetIntervaloAmarelo() const;

@@ -105,9 +105,11 @@ class Motor : public Dispositivo
 
         /**
         * @brief Soma graus a temperatura actual.
+        *
+        * Metodo virtual: cada tipo de motor re-implementa a sua forma de aquecer.
         * @param graus Valor positivo de aquecimento.
         */
-        void Aquecer(double graus);
+        virtual void Aquecer(double graus);
 
         /**
         * @brief Tira graus a temperatura, sem descer abaixo de zero.

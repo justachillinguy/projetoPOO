@@ -34,10 +34,6 @@ using namespace std;
  * - Listar_Tipo e os rankings devolvem uma lista nova. Quem chamou
  *   apaga a lista com delete e nao apaga os motores que ela aponta.
  * - O destrutor liberta utilizadores, motores e sensores.
- *
- * O ciclo continuo do simulador (tecla M) nao faz parte desta fase.
- * Manutencao, avisos, relatorio XML e listagem HTML ficam declarados
- * e sao preenchidos quando o simulador for ligado.
  */
 
 class Fabrica
@@ -210,6 +206,15 @@ class Fabrica
 
         void Listar(ostream& f = cout) const;
         void Desligar(int id_motor);
+
+        /**
+        * @brief Reinicia um motor (RESTART), se o utilizador tiver permissao RUN.
+        *
+        * Um motor AVARIADO nao pode ser reiniciado; so a manutencao o recupera.
+        * @param id_motor Identificador do motor.
+        */
+        void ReiniciarMotor(int id_motor);
+
         ESTADO_MOTOR Get_Estado(int id_motor) const;
         list<Motor*>* Listar_Tipo(string Tipo, ostream& f = cout) const;
         bool Manutencao();

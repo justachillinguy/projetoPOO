@@ -129,6 +129,7 @@ static void executarMenu(Fabrica& fabrica)
     cout << "13. Gerar relatorio XML"                 << endl;
     cout << "14. Gerar listagem HTML"                 << endl;
     cout << "15. Mudar utilizador atual"              << endl;
+    cout << "16. Reiniciar motor (RESTART)"           << endl;
     cout << "S.  Sair do menu"                        << endl;
     cout << "======================================" << endl;
     cout << "Opcao: ";
@@ -236,6 +237,17 @@ static void executarMenu(Fabrica& fabrica)
             {
                 cout << "Tipo invalido." << endl;
             }
+        }
+        return;
+    }
+
+    if (linha == "16")
+    {
+        cout << "ID do motor a reiniciar: ";
+        string s = lerLinha();
+        if (!s.empty())
+        {
+            fabrica.ReiniciarMotor(atoi(s.c_str()));
         }
         return;
     }

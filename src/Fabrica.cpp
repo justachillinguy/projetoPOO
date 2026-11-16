@@ -352,6 +352,23 @@ void Fabrica::Desligar(int id_motor)
     motor->STOP();
 }
 
+void Fabrica::ReiniciarMotor(int id_motor)
+{
+    if (!podeRun())
+    {
+        return;
+    }
+
+    Motor* motor = procurarMotor(id_motor);
+    if (motor == NULL)
+    {
+        return;
+    }
+
+    motor->RESTART();
+    cout << "Motor " << id_motor << " reiniciado (RESTART)." << endl;
+}
+
 ESTADO_MOTOR Fabrica::Get_Estado(int id_motor) const
 {
     if (!podeListar())
