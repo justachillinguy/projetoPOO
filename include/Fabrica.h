@@ -4,6 +4,8 @@
 #include "Motor.h"
 #include "Sensor.h"
 #include "TiposMotor.h"
+#include "TiposSensor.h"
+#include "TiposUser.h"
 #include "Tipos.h"
 #include "User.h"
 

@@ -1,6 +1,6 @@
 #include "Fabrica.h"
-#include "Sensor.h"
-#include "User.h"
+#include "TiposSensor.h"
+#include "TiposUser.h"
 #include "TiposMotor.h"
 
 #include <iostream>
