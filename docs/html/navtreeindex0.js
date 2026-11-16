@@ -5,6 +5,9 @@ var NAVTREEINDEX0 =
 "_dispositivo_8h.html":[1,0,0,0],
 "_dispositivo_8h_source.html":[1,0,0,0],
 "_fabrica_8cpp.html":[1,0,1,1],
+"_fabrica_8cpp.html#a4e1b2799c29ee6684af35b41c57d3395":[1,0,1,1,0],
+"_fabrica_8cpp.html#a79449961e4a8f218961ef6486bbb2d55":[1,0,1,1,2],
+"_fabrica_8cpp.html#af3092c0d6019857a6ab8c6669ba57bb1":[1,0,1,1,1],
 "_fabrica_8cpp_source.html":[1,0,1,1],
 "_fabrica_8h.html":[1,0,0,1],
 "_fabrica_8h_source.html":[1,0,0,1],
@@ -246,8 +249,5 @@ var NAVTREEINDEX0 =
 "class_sensor.html#a0d370247a832c14d9dcb90bfbb2df789":[0,0,9,10],
 "class_sensor.html#a10601717a7eae4a03a22f14ee8ff3315":[0,0,9,5],
 "class_sensor.html#a129d3cca804f384775719750046540c1":[0,0,9,8],
-"class_sensor.html#a13c65bb23f753b5831fccbd25e97d56d":[0,0,9,4],
-"class_sensor.html#a3caebbaea224c8622bb24a5b7fa3119d":[0,0,9,3],
-"class_sensor.html#a3ddc17aaf50c49001de243bcdcbfb2cb":[0,0,9,11],
-"class_sensor.html#a4f1a6fdfe225c39c7f66ad89b77297cb":[0,0,9,7]
+"class_sensor.html#a13c65bb23f753b5831fccbd25e97d56d":[0,0,9,4]
 };

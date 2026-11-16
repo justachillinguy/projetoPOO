@@ -51,7 +51,7 @@ var NAVTREE =
 var NAVTREEINDEX =
 [
 "_dispositivo_8cpp.html",
-"class_sensor.html#a52b5bea9a9f3dfcd2c8ea102c8e13c95"
+"class_sensor.html#a3caebbaea224c8622bb24a5b7fa3119d"
 ];
 
 const SYNCONMSG = 'click to disable panel synchronization';

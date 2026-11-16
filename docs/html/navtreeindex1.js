@@ -1,5 +1,8 @@
 var NAVTREEINDEX1 =
 {
+"class_sensor.html#a3caebbaea224c8622bb24a5b7fa3119d":[0,0,9,3],
+"class_sensor.html#a3ddc17aaf50c49001de243bcdcbfb2cb":[0,0,9,11],
+"class_sensor.html#a4f1a6fdfe225c39c7f66ad89b77297cb":[0,0,9,7],
 "class_sensor.html#a52b5bea9a9f3dfcd2c8ea102c8e13c95":[0,0,9,2],
 "class_sensor.html#a5d72a724705a4daeb799694cfdf36030":[0,0,9,9],
 "class_sensor.html#a7d08f06484af5ca9cdcc804734ecfade":[0,0,9,0],
