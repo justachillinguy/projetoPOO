@@ -1,7 +1,13 @@
-fabrica.exe
 *.exe
 *.o
 *.obj
 *.ilk
 *.pdb
+bin/
+obj/
+*.layout
+*.depend
 build/
+video_fumo.txt
+video_luz.txt
+video_missel.txt

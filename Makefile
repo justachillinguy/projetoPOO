@@ -1,10 +1,21 @@
 CXX = g++
 CXXFLAGS = -Wall -Wextra -std=c++11 -Iinclude
+SRC = $(wildcard src/*.cpp) main.cpp
+TARGET = bin/Debug/ProjetoPOO.exe
 
-FONTES = src/main.cpp src/Dispositivo.cpp src/User.cpp src/Sensor.cpp src/Motor.cpp src/TiposMotor.cpp src/Fabrica.cpp
+ifeq ($(OS),Windows_NT)
+    MKDIR = if not exist bin\Debug mkdir bin\Debug
+    RM = if exist bin\Debug\ProjetoPOO.exe del /Q bin\Debug\ProjetoPOO.exe
+else
+    MKDIR = mkdir -p bin/Debug
+    RM = rm -f $(TARGET)
+endif
 
-fabrica: $(FONTES)
-	$(CXX) $(CXXFLAGS) -o fabrica $(FONTES)
+all: $(TARGET)
+
+$(TARGET): $(SRC)
+	@$(MKDIR)
+	$(CXX) $(CXXFLAGS) -o $@ $^
 
 clean:
-	del /Q fabrica.exe
+	@$(RM)

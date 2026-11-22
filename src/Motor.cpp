@@ -1,247 +1,208 @@
+/**
+ * @file Motor.cpp
+ * @brief Implementação dos métodos da classe base Motor.
+ */
+
 #include "Motor.h"
+#include <cstdlib>
 
-#include <iostream>
+/**
+ * @brief Construtor da classe Motor.
+ * @param id Identificador único do motor.
+ * @param tipo Designação do tipo de motor.
+ * @param marca Marca do fabricante do motor.
+ * @param consumoHora Consumo energético por hora de funcionamento.
+ * @param tempAviso Temperatura de aviso (zona AMARELA).
+ * @param tempParagem Temperatura de paragem de segurança (zona VERMELHA).
+ * @param probAvaria Probabilidade de avaria por hora (0.0 a 1.0).
+ * @param x Coordenada X na fábrica.
+ * @param y Coordenada Y na fábrica.
+ */
+Motor::Motor(int id, const string& tipo, const string& marca, double consumoHora, double tempAviso, double tempParagem,
+             double probAvaria, int x, int y)
+    : Dispositivo(id, marca, probAvaria, x, y), tipo(tipo), consumoHora(consumoHora),
+      consumoDia(0.0), temperaturaAtual(25.0), temperaturaAviso(tempAviso),
+      temperaturaParagem(tempParagem), tempoTrabalho(0), estado(ESTADO_MOTOR::STOP) {}
 
-using namespace std;
+/**
+ * @brief Destrutor virtual da classe Motor.
+ */
+Motor::~Motor() {}
 
-Motor::Motor(int id, const string& tipo, const string& marca, double consumoHora,
-             double temperaturaAviso, double temperaturaParagem, double probabilidadeAvaria,
-             int posX, int posY)
-    : Dispositivo(id, marca, probabilidadeAvaria, posX, posY),
-      tipo(tipo),
-      consumoHora(consumoHora),
-      temperaturaAviso(temperaturaAviso),
-      temperaturaParagem(temperaturaParagem),
-      temperaturaAtual(0.0),
-      consumoDia(0.0),
-      tempoTrabalho(0),
-      estado(::STOP)
-{
-}
-
-Motor::~Motor()
-{
-}
-
-void Motor::RUN()
-{
-    if (estaEmPerigo())
-    {
-        estado = ::STOP;
-        return;
-    }
-
-    if (estado != ::START)
-    {
-        return;
-    }
-
-    estado = ::RUN;
-}
-
-void Motor::START()
-{
-    if (estaEmPerigo())
-    {
-        estado = ::STOP;
-        return;
-    }
-
-    if (estado == AVARIADO)
-    {
-        return;
-    }
-
-    estado = ::START;
-}
-
-void Motor::RESTART()
-{
-    if (estado == AVARIADO)
-    {
-        return;
-    }
-
-    if (estaEmPerigo())
-    {
-        estado = ::STOP;
-        return;
-    }
-
-    estado = ::START;
-}
-
-void Motor::STOP()
-{
-    if (estado != AVARIADO)
-    {
-        estado = ::STOP;
-    }
-}
-
-CLASSE_TEMPERATURA Motor::ESTOU_QUENTE()
-{
-    CLASSE_TEMPERATURA classe = GetClasseTemperatura();
-
-    if (classe == AMARELO)
-    {
-        cout << "[AVISO GESTOR] Motor " << GetId() << " (" << GetMarca() << ") esta em AMARELO ("
-             << temperaturaAtual << " graus)." << endl;
-    }
-    else if (classe == VERMELHO)
-    {
-        cout << "[AVISO GESTOR] Motor " << GetId() << " (" << GetMarca() << ") esta em VERMELHO ("
-             << temperaturaAtual << " graus) - a parar!" << endl;
-        estado = ::STOP;
-    }
-
-    return classe;
-}
-
-CLASSE_TEMPERATURA Motor::GetClasseTemperatura() const
-{
-    if (temperaturaAtual >= temperaturaParagem)
-    {
-        return VERMELHO;
-    }
-
-    if (temperaturaAtual >= temperaturaAviso)
-    {
-        return AMARELO;
-    }
-
-    return VERDE;
-}
-
-bool Motor::estaEmPerigo() const
-{
-    return GetClasseTemperatura() == VERMELHO;
-}
-
-ESTADO_MOTOR Motor::GetEstado() const
-{
-    return estado;
-}
-
-string Motor::GetTipo() const
-{
+/**
+ * @brief Obtém o tipo específico do motor.
+ * @return Texto com o tipo de motor.
+ */
+string Motor::GetTipo() const {
     return tipo;
 }
 
-double Motor::GetConsumoHora() const
-{
+/**
+ * @brief Obtém o estado operacional atual do motor.
+ * @return Estado atual do motor (STOP, START, RUN ou AVARIADO).
+ */
+ESTADO_MOTOR Motor::GetEstado() const {
+    return estado;
+}
+
+/**
+ * @brief Define o estado operacional atual do motor.
+ * @param est Novo estado operacional.
+ */
+void Motor::SetEstado(ESTADO_MOTOR est) {
+    estado = est;
+    if (est == ESTADO_MOTOR::AVARIADO) {
+        avariado = true;
+    }
+}
+
+/**
+ * @brief Obtém o consumo energético horário do motor.
+ * @return Consumo por hora.
+ */
+double Motor::GetConsumoHora() const {
     return consumoHora;
 }
 
-double Motor::GetConsumoDia() const
-{
+/**
+ * @brief Obtém o consumo energético acumulado no dia atual.
+ * @return Consumo diário.
+ */
+double Motor::GetConsumoDia() const {
     return consumoDia;
 }
 
-double Motor::GetTemperaturaAviso() const
-{
+/**
+ * @brief Obtém a temperatura atual do motor.
+ * @return Temperatura em graus Celsius.
+ */
+
+double Motor::GetTemperaturaAviso() const {
     return temperaturaAviso;
 }
 
-double Motor::GetTemperaturaParagem() const
-{
+double Motor::GetTemperaturaParagem() const {
     return temperaturaParagem;
 }
 
-double Motor::GetTemperaturaAtual() const
-{
+double Motor::GetTemperaturaAtual() const {
     return temperaturaAtual;
 }
 
-int Motor::GetTempoTrabalho() const
-{
+/**
+ * @brief Define a temperatura atual do motor.
+ * @param temp Nova temperatura em graus Celsius.
+ */
+void Motor::SetTemperaturaAtual(double temp) {
+    temperaturaAtual = temp;
+}
+
+/**
+ * @brief Obtém o tempo total de trabalho acumulado pelo motor.
+ * @return Tempo total em minutos.
+ */
+int Motor::GetTempoTrabalho() const {
     return tempoTrabalho;
 }
 
-void Motor::SetTemperaturaAtual(double temperatura)
-{
-    temperaturaAtual = temperatura;
-}
-
-void Motor::Aquecer(double graus)
-{
-    if (graus > 0.0)
-    {
-        temperaturaAtual = temperaturaAtual + graus;
-    }
-}
-
-void Motor::Arrefecer(double graus)
-{
-    if (graus <= 0.0)
-    {
-        return;
-    }
-
-    temperaturaAtual = temperaturaAtual - graus;
-    if (temperaturaAtual < 0.0)
-    {
-        temperaturaAtual = 0.0;
-    }
-}
-
-bool Motor::Avariar()
-{
-    if (estado == AVARIADO)
-    {
-        return false;
-    }
-
-    estado = AVARIADO;
-    RegistarAvaria();
-    return true;
-}
-
-void Motor::Reparar()
-{
-    RepararAvaria();
-    if (estado == AVARIADO)
-    {
-        estado = ::STOP;
-    }
-}
-
-void Motor::RegistarTrabalho(int minutos)
-{
-    if (minutos <= 0)
-    {
-        return;
-    }
-
-    tempoTrabalho = tempoTrabalho + minutos;
-    consumoDia = consumoDia + consumoHora * (minutos / 60.0);
-}
-
-void Motor::ReiniciarConsumoDia()
-{
+/**
+ * @brief Reinicia o contador de consumo energético diário para zero.
+ */
+void Motor::ReiniciarConsumoDia() {
     consumoDia = 0.0;
 }
 
-IntervaloTemperatura Motor::GetIntervaloVerde() const
-{
-    IntervaloTemperatura iv;
-    iv.minimo = 0.0;
-    iv.maximo = 0.0;
-    return iv;
+/**
+ * @brief Inicia o motor.
+ * Verifica primeiro se a temperatura se encontra na zona VERMELHA.
+ * Se não estiver avariado nem sobreaquecido e estiver parado (STOP), passa para START.
+ */
+void Motor::START() {
+    if (ESTOU_QUENTE() == VERMELHO) {
+        STOP();
+        return;
+    }
+
+    if (!avariado && estado == ESTADO_MOTOR::STOP) {
+        estado = ESTADO_MOTOR::START;
+    }
 }
 
-IntervaloTemperatura Motor::GetIntervaloAmarelo() const
-{
-    IntervaloTemperatura iv;
-    iv.minimo = 0.0;
-    iv.maximo = 0.0;
-    return iv;
+/**
+ * @brief Executa um ciclo de funcionamento de 10 minutos do motor.
+ */
+void Motor::RUN() {
+    if (ESTOU_QUENTE() == VERMELHO) {
+        STOP();
+        return;
+    }
+
+    if (!avariado && (estado == ESTADO_MOTOR::START || estado == ESTADO_MOTOR::RUN)) {
+        estado = ESTADO_MOTOR::RUN;
+        tempoTrabalho += 10;
+        consumoDia += consumoHora * (10.0 / 60.0);
+        temperaturaAtual += 2.0;
+
+        if (ESTOU_QUENTE() == VERMELHO) {
+            STOP();
+        }
+    }
 }
 
-IntervaloTemperatura Motor::GetIntervaloVermelho() const
-{
-    IntervaloTemperatura iv;
-    iv.minimo = 0.0;
-    iv.maximo = 0.0;
-    return iv;
+/**
+ * @brief Reinicia o motor, efetuando paragem seguida de arranque.
+ */
+void Motor::RESTART() {
+    if (!avariado) {
+        STOP();
+        START();
+    }
+}
+
+/**
+ * @brief Pára o motor, colocando-o em STOP caso não esteja avariado.
+ */
+void Motor::STOP() {
+    if (estado != ESTADO_MOTOR::AVARIADO) {
+        estado = ESTADO_MOTOR::STOP;
+    }
+}
+
+/**
+ * @brief Reduz gradualmente a temperatura do motor quando está parado.
+ * @param graus Quantidade de graus Celsius a reduzir.
+ */
+void Motor::Arrefecer(double graus) {
+    temperaturaAtual -= graus;
+    if (temperaturaAtual < 20.0) {
+        temperaturaAtual = 20.0;
+    }
+}
+
+/**
+ * @brief Avalia a classe térmica atual do motor.
+ * @return VERMELHO, AMARELO ou VERDE consoante os limiares configurados.
+ */
+CLASSE_TEMPERATURA Motor::ESTOU_QUENTE() {
+    if (temperaturaAtual >= temperaturaParagem) {
+        return VERMELHO;
+    }
+    if (temperaturaAtual >= temperaturaAviso) {
+        return AMARELO;
+    }
+    return VERDE;
+}
+
+/**
+ * @brief Efetua a manutenção do motor, reparando avarias e repondo temperatura na zona VERDE.
+ */
+void Motor::Manutencao() {
+    Reparar();
+    estado = ESTADO_MOTOR::STOP;
+
+    int maxVerde = (int)temperaturaAviso - 1;
+    if (maxVerde < 20) {
+        maxVerde = 20;
+    }
+    temperaturaAtual = 20 + (rand() % (maxVerde - 19));
 }
