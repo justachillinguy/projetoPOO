@@ -1,2106 +1,1045 @@
-#include "Fabrica.h"
 
-#include <cctype>
-#include <cstddef>
-#include <cstdlib>
-#include <cmath>
-#include <fstream>
-#include <sstream>
 
-using namespace std;
 
 /**
- * @brief Videos de demonstracao abertos quando os sensores disparam.
- *
- * Estao na pasta videos/, junto do executavel.
+ * @file Fabrica.cpp
+ * @brief Implementação dos métodos da classe Fabrica, leitura/escrita XML e simulação.
  */
-static const string VIDEO_FUMO   = "videos/aviso_fumo.mp4";
-static const string VIDEO_LUZ    = "videos/aviso_luz.mp4";
-static const string VIDEO_MISSEL = "videos/aviso_missel.mp4";
 
-Fabrica::Fabrica(User* ut)
-    : utilizadorAtual(ut),
-      campoX(0),
-      campoY(0),
-      horaAbertura(0),
-      horaEncerramento(0),
-      vizinhancaAviso(0),
-      nomeFabrica("")
-{
-    verde.minimo    = 0.0; verde.maximo    = 0.0;
-    amarelo.minimo  = 0.0; amarelo.maximo  = 0.0;
-    vermelho.minimo = 0.0; vermelho.maximo = 0.0;
+#include "Fabrica.h"
 
-    defCombustao.verde.minimo = 0.0; defCombustao.verde.maximo = 0.0;
-    defCombustao.amarelo.minimo = 0.0; defCombustao.amarelo.maximo = 0.0;
-    defCombustao.vermelho.minimo = 0.0; defCombustao.vermelho.maximo = 0.0;
-    defCombustao.probAvaria = 0.0;
+static void ExecutarVideo(const string& caminho) {
+    if (caminho.empty()) return;
+#ifdef _WIN32
+    string cmd = "start "" "" + caminho + """;
+#elif defined(__linux__) || defined(__APPLE__)
+    string cmd = "xdg-open "" + caminho + "" 2>/dev/null || open "" + caminho + "" 2>/dev/null &";
+#else
+    string cmd = "";
+#endif
+    if (!cmd.empty()) {
+        system(cmd.c_str());
+    }
+}
 
-    defEletrico.verde.minimo = 0.0; defEletrico.verde.maximo = 0.0;
-    defEletrico.amarelo.minimo = 0.0; defEletrico.amarelo.maximo = 0.0;
-    defEletrico.vermelho.minimo = 0.0; defEletrico.vermelho.maximo = 0.0;
-    defEletrico.probAvaria = 0.0;
+#include <fstream>
+#include <sstream>
+#include <cmath>
+#include <cstdlib>
+#include <vector>
 
-    defInducao.verde.minimo = 0.0; defInducao.verde.maximo = 0.0;
-    defInducao.amarelo.minimo = 0.0; defInducao.amarelo.maximo = 0.0;
-    defInducao.vermelho.minimo = 0.0; defInducao.vermelho.maximo = 0.0;
-    defInducao.probAvaria = 0.0;
-
-    if (ut != NULL)
-    {
+/**
+ * @brief Construtor da classe Fabrica.
+ * @param ut Utilizador inicial associado à sessão.
+ */
+Fabrica::Fabrica(User *ut)
+    : nome("Fabrica"), horaAbertura(8), horaFecho(16), vizinhancaAviso(10),
+      dimensaoX(100), dimensaoY(100), horaSimulada(8), minutoSimulado(0),
+      fabricaAtiva(true), userAtual(ut) {
+    if (ut != NULL) {
         utilizadores.push_back(ut);
     }
 }
 
-Fabrica::~Fabrica()
-{
-    apagarMotores(motores);
-    apagarSensores(sensores);
-    apagarUtilizadores(utilizadores);
-    utilizadorAtual = NULL;
+/**
+ * @brief Destrutor virtual da classe Fabrica.
+ * Liberta toda a memória alocada dinamicamente para motores, sensores e utilizadores.
+ */
+Fabrica::~Fabrica() {
+    for (list<Motor*>::iterator it = motores.begin(); it != motores.end(); ++it) {
+        delete *it;
+    }
+    motores.clear();
+
+    for (list<Sensor*>::iterator it = sensores.begin(); it != sensores.end(); ++it) {
+        delete *it;
+    }
+    sensores.clear();
+
+    for (list<User*>::iterator it = utilizadores.begin(); it != utilizadores.end(); ++it) {
+        delete *it;
+    }
+    utilizadores.clear();
 }
 
-bool Fabrica::Load(const string& ficheiro)
-{
-    if (!motores.empty() || !sensores.empty())
-    {
-        return false;
+// ==================== AUXILIARES PRIVADOS ====================
+
+/**
+ * @brief Procura um motor na lista pelo seu identificador.
+ * @param id Identificador do motor.
+ * @return Ponteiro para o motor encontrado ou NULL se não existir.
+ */
+Motor* Fabrica::ProcurarMotor(int id) const {
+    for (list<Motor*>::const_iterator it = motores.begin(); it != motores.end(); ++it) {
+        if ((*it)->GetId() == id) {
+            return *it;
+        }
     }
+    return NULL;
+}
 
-    list<string> linhas;
-    if (!lerLinhas(ficheiro, linhas))
-    {
-        return false;
+/**
+ * @brief Procura um sensor na lista pelo seu identificador.
+ * @param id Identificador do sensor.
+ * @return Ponteiro para o sensor encontrado ou NULL se não existir.
+ */
+Sensor* Fabrica::ProcurarSensor(int id) const {
+    for (list<Sensor*>::const_iterator it = sensores.begin(); it != sensores.end(); ++it) {
+        if ((*it)->GetId() == id) {
+            return *it;
+        }
     }
+    return NULL;
+}
 
-    if (eFormatoAtributos(linhas))
-    {
-        return carregarFormatoAtributos(linhas);
+/**
+ * @brief Calcula a distância euclidiana entre duas coordenadas da fábrica.
+ * @param x1 Coordenada X do primeiro ponto.
+ * @param y1 Coordenada Y do primeiro ponto.
+ * @param x2 Coordenada X do segundo ponto.
+ * @param y2 Coordenada Y do segundo ponto.
+ * @return Distância entre os dois pontos.
+ */
+double Fabrica::CalcularDistancia(int x1, int y1, int x2, int y2) const {
+    double dx = x1 - x2;
+    double dy = y1 - y2;
+    return sqrt(dx * dx + dy * dy);
+}
+
+/**
+ * @brief Extrai o conteúdo existente entre uma tag de abertura e de fecho XML.
+ * @param texto Texto XML onde procurar.
+ * @param tag Nome da etiqueta XML (sem sinais < >).
+ * @return Conteúdo interno da tag ou string vazia se não for encontrada.
+ */
+string Fabrica::ExtrairTagXML(const string& texto, const string& tag) const {
+    string inicio = "<" + tag + ">";
+    string fim = "</" + tag + ">";
+    size_t pos1 = texto.find(inicio);
+    if (pos1 == string::npos) return "";
+    pos1 += inicio.length();
+    size_t pos2 = texto.find(fim, pos1);
+    if (pos2 == string::npos) return "";
+    return texto.substr(pos1, pos2 - pos1);
+}
+
+/**
+ * @brief Extrai dois valores reais separados por vírgula.
+ * @param texto String contendo o par de valores.
+ * @param primeiro Variável onde será guardado o primeiro valor.
+ * @param segundo Variável onde será guardado o segundo valor.
+ */
+void Fabrica::ExtrairParDouble(const string& texto, double& primeiro, double& segundo) const {
+    size_t virgula = texto.find(',');
+    if (virgula != string::npos) {
+        primeiro = atof(texto.substr(0, virgula).c_str());
+        segundo = atof(texto.substr(virgula + 1).c_str());
     }
+}
 
-    list<string> blocoDefinicoes;
-    if (!extrairBloco(linhas, "DEFINICOES", blocoDefinicoes))
-    {
-        return false;
+/**
+ * @brief Extrai dois valores inteiros separados por vírgula.
+ * @param texto String contendo o par de coordenadas.
+ * @param primeiro Variável onde será guardado o primeiro valor.
+ * @param segundo Variável onde será guardado o segundo valor.
+ */
+void Fabrica::ExtrairParInt(const string& texto, int& primeiro, int& segundo) const {
+    size_t virgula = texto.find(',');
+    if (virgula != string::npos) {
+        primeiro = atoi(texto.substr(0, virgula).c_str());
+        segundo = atoi(texto.substr(virgula + 1).c_str());
     }
+}
 
-    int    novoX            = 0;
-    int    novoY            = 0;
-    int    novaAbertura     = 0;
-    int    novoEncerramento = 0;
-    int    novaVizinhanca   = 0;
-    string novoNome;
-    DefinicoesTipoMotor novoComb, novoElet, novoInd;
-
-    novoComb.verde.minimo = 0.0; novoComb.verde.maximo = 0.0;
-    novoComb.amarelo.minimo = 0.0; novoComb.amarelo.maximo = 0.0;
-    novoComb.vermelho.minimo = 0.0; novoComb.vermelho.maximo = 0.0;
-    novoComb.probAvaria = 0.0;
-    novoElet = novoComb;
-    novoInd  = novoComb;
-
-    if (!lerDefinicoes(blocoDefinicoes, novoX, novoY,
-                       novaAbertura, novoEncerramento,
-                       novaVizinhanca, novoNome,
-                       novoComb, novoElet, novoInd))
-    {
-        return false;
+/**
+ * @brief Normaliza a probabilidade lida do XML para o intervalo [0.0, 1.0].
+ * @param valor Valor lido do ficheiro XML.
+ * @return Probabilidade normalizada.
+ */
+double Fabrica::NormalizarProbabilidade(double valor) const {
+    if (valor >= 1.0) {
+        return valor / 100.0;
     }
+    return valor;
+}
 
-    // lerMotores e lerSensores precisam destes valores, por isso sao aplicados ja.
-    // Se a carga falhar, restaurarDefinicoes volta ao estado anterior.
-    const int vizinhancaAnterior = vizinhancaAviso;
-    const DefinicoesTipoMotor combAnterior = defCombustao;
-    const DefinicoesTipoMotor eletAnterior = defEletrico;
-    const DefinicoesTipoMotor indAnterior  = defInducao;
+/**
+ * @brief Verifica se a hora atual da simulação está dentro do horário de laboração.
+ * @return true se a fábrica estiver aberta; false caso contrário.
+ */
+bool Fabrica::EstaAberta() const {
+    return (horaSimulada >= horaAbertura && horaSimulada < horaFecho);
+}
 
-    vizinhancaAviso = novaVizinhanca;
+/**
+ * @brief Atualiza os valores lidos pelos sensores durante a simulação.
+ * Os sensores de temperatura refletem a maior temperatura dos motores na sua vizinhança.
+ */
+void Fabrica::AtualizarSensores() {
+    for (list<Sensor*>::iterator it = sensores.begin(); it != sensores.end(); ++it) {
+        Sensor* s = *it;
+        if (s->EstaAvariado()) continue;
 
-    defCombustao = novoComb;
-    defEletrico  = novoElet;
-    defInducao   = novoInd;
+        if (s->GetTipo() == "TEMPERATURA") {
+            double maxTemp = 20.0;
+            for (list<Motor*>::iterator mIt = motores.begin(); mIt != motores.end(); ++mIt) {
+                Motor* m = *mIt;
+                if (CalcularDistancia(s->GetX(), s->GetY(), m->GetX(), m->GetY()) <= vizinhancaAviso) {
+                    if (m->GetTemperaturaAtual() > maxTemp) {
+                        maxTemp = m->GetTemperaturaAtual();
+                    }
+                }
+            }
+            s->SetValor(maxTemp);
+        }
+    }
+}
 
-    list<string> blocoMotores;
-    list<Motor*> novosMotores;
-    if (extrairBloco(linhas, "MOTORES", blocoMotores))
-    {
-        if (!lerMotores(blocoMotores, novoX, novoY, novosMotores))
-        {
-            apagarMotores(novosMotores);
-            restaurarDefinicoes(vizinhancaAnterior, combAnterior, eletAnterior, indAnterior);
-            return false;
+/**
+ * @brief Simula a ocorrência aleatória de avarias nos motores e sensores ativos.
+ */
+void Fabrica::SimularAvarias() {
+    for (list<Motor*>::iterator it = motores.begin(); it != motores.end(); ++it) {
+        Motor* m = *it;
+        if (!m->EstaAvariado() && m->GetEstado() == ESTADO_MOTOR::RUN) {
+            double r = (double)rand() / RAND_MAX;
+            if (r < (m->GetProbabilidadeAvaria() / 6.0)) {
+                m->RegistarAvaria();
+                m->STOP();
+                cout << "[ALERTA GESTOR] Motor ID " << m->GetId()
+                     << " (" << m->GetMarca() << ") AVARIOU!\n";
+            }
         }
     }
 
-    list<string> blocoSensores;
-    list<Sensor*> novosSensores;
-    if (extrairBloco(linhas, "SENSORES", blocoSensores))
-    {
-        if (!lerSensores(blocoSensores, novoX, novoY, novosSensores))
-        {
-            apagarMotores(novosMotores);
-            apagarSensores(novosSensores);
-            restaurarDefinicoes(vizinhancaAnterior, combAnterior, eletAnterior, indAnterior);
-            return false;
+    for (list<Sensor*>::iterator it = sensores.begin(); it != sensores.end(); ++it) {
+        Sensor* s = *it;
+        if (!s->EstaAvariado()) {
+            double r = (double)rand() / RAND_MAX;
+            if (r < (s->GetProbabilidadeAvaria() / 6.0)) {
+                s->RegistarAvaria();
+                cout << "[ALERTA GESTOR] Sensor ID " << s->GetId()
+                     << " (" << s->GetMarca() << ") AVARIOU!\n";
+            }
+        }
+    }
+}
+
+/**
+ * @brief Avança o relógio da simulação e reinicia o consumo diário na viragem do dia.
+ * @param minutos Quantidade de minutos a somar.
+ */
+void Fabrica::AvancarRelogio(int minutos) {
+    minutoSimulado += minutos;
+    while (minutoSimulado >= 60) {
+        minutoSimulado -= 60;
+        horaSimulada++;
+    }
+    if (horaSimulada >= 24) {
+        horaSimulada %= 24;
+        for (list<Motor*>::iterator it = motores.begin(); it != motores.end(); ++it) {
+            (*it)->ReiniciarConsumoDia();
+        }
+    }
+}
+
+// ==================== CARREGAMENTO XML ====================
+
+/**
+ * @brief Lê e carrega a configuração da fábrica, motores e sensores a partir de um ficheiro XML.
+ * @param ficheiro Nome/caminho do ficheiro XML.
+ * @return true se o ficheiro for lido com sucesso; false caso contrário.
+ */
+bool Fabrica::Load(const string &ficheiro) {
+    ifstream fich(ficheiro.c_str());
+    if (!fich.is_open()) {
+        return false;
+    }
+
+    stringstream buffer;
+    buffer << fich.rdbuf();
+    string conteudo = buffer.str();
+    fich.close();
+
+    // 1. Ler seccao <DEFINICOES>
+    string secDefinicoes = ExtrairTagXML(conteudo, "DEFINICOES");
+    if (secDefinicoes.empty()) {
+        cout << "XML invalido: falta seccao <DEFINICOES>.\n";
+        return false;
+    }
+
+    string n = ExtrairTagXML(secDefinicoes, "NOME_EMPRESA");
+    if (!n.empty()) nome = n;
+
+    string hi = ExtrairTagXML(secDefinicoes, "HORA_INICIO");
+    if (!hi.empty()) {
+        horaAbertura = atoi(hi.c_str());
+        horaSimulada = horaAbertura;
+        minutoSimulado = 0;
+    }
+
+    string hf = ExtrairTagXML(secDefinicoes, "HORA_FECHO");
+    if (!hf.empty()) horaFecho = atoi(hf.c_str());
+
+    string viz = ExtrairTagXML(secDefinicoes, "VIZINHANCA_AVISO");
+    if (!viz.empty()) vizinhancaAviso = atoi(viz.c_str());
+
+    string dim = ExtrairTagXML(secDefinicoes, "DIMENSAO_FABRICA");
+    if (!dim.empty()) ExtrairParInt(dim, dimensaoX, dimensaoY);
+
+    string tiposMotor[3] = { "MELETRICO", "MCOMBUSTAO", "MINDUCAO" };
+    map<string, double> avisoPorTipo;
+    map<string, double> paragemPorTipo;
+    map<string, double> probPorTipo;
+
+    for (int i = 0; i < 3; i++) {
+        string blocoTipo = ExtrairTagXML(secDefinicoes, tiposMotor[i]);
+        string strVerde = ExtrairTagXML(blocoTipo, "VERDE");
+        string strAmarelo = ExtrairTagXML(blocoTipo, "AMARELO");
+        string strVermelho = ExtrairTagXML(blocoTipo, "VERMELHO");
+        string strProb = ExtrairTagXML(blocoTipo, "PROB_AVARIA");
+
+        defVerde[tiposMotor[i]] = strVerde;
+        defAmarelo[tiposMotor[i]] = strAmarelo;
+        defVermelho[tiposMotor[i]] = strVermelho;
+        defProbAvaria[tiposMotor[i]] = strProb;
+
+        double minAmarelo = 60.0, maxAmarelo = 80.0;
+        double minVermelho = 81.0, maxVermelho = 200.0;
+        ExtrairParDouble(strAmarelo, minAmarelo, maxAmarelo);
+        ExtrairParDouble(strVermelho, minVermelho, maxVermelho);
+        double prob = NormalizarProbabilidade(atof(strProb.c_str()));
+
+        avisoPorTipo[tiposMotor[i]] = minAmarelo;
+        paragemPorTipo[tiposMotor[i]] = minVermelho;
+        probPorTipo[tiposMotor[i]] = prob;
+    }
+
+    // 2. Ler seccao <MOTORES>
+    string secMotores = ExtrairTagXML(conteudo, "MOTORES");
+    for (int t = 0; t < 3; t++) {
+        string tagTipo = tiposMotor[t];
+        string tagAbrir = "<" + tagTipo + ">";
+        string tagFechar = "</" + tagTipo + ">";
+        size_t pos = 0;
+
+        while ((pos = secMotores.find(tagAbrir, pos)) != string::npos) {
+            size_t fim = secMotores.find(tagFechar, pos);
+            if (fim == string::npos) break;
+
+            string bloco = secMotores.substr(pos + tagAbrir.length(), fim - (pos + tagAbrir.length()));
+
+            int id = atoi(ExtrairTagXML(bloco, "ID").c_str());
+            string marca = ExtrairTagXML(bloco, "MARCA");
+            double tempAtual = atof(ExtrairTagXML(bloco, "VALOR_TEMP_ATUAL").c_str());
+            string estadoStr = ExtrairTagXML(bloco, "ESTADO_ATUAL");
+            double consumo = atof(ExtrairTagXML(bloco, "CONSUMO_HORA").c_str());
+
+            int x = 0, y = 0;
+            ExtrairParInt(ExtrairTagXML(bloco, "POSICAO"), x, y);
+
+            if (x >= 0 && x <= dimensaoX && y >= 0 && y <= dimensaoY && ProcurarMotor(id) == NULL) {
+                Motor* m = NULL;
+                if (tagTipo == "MCOMBUSTAO") {
+                    m = new MotorCombustao(id, marca, consumo, avisoPorTipo[tagTipo], paragemPorTipo[tagTipo], probPorTipo[tagTipo], x, y);
+                } else if (tagTipo == "MINDUCAO") {
+                    m = new MotorInducao(id, marca, consumo, avisoPorTipo[tagTipo], paragemPorTipo[tagTipo], probPorTipo[tagTipo], x, y);
+                } else {
+                    m = new MotorEletrico(id, marca, consumo, avisoPorTipo[tagTipo], paragemPorTipo[tagTipo], probPorTipo[tagTipo], x, y);
+                }
+
+                if (m != NULL) {
+                    m->SetTemperaturaAtual(tempAtual);
+                    if (estadoStr == "RUN") m->SetEstado(ESTADO_MOTOR::RUN);
+                    else if (estadoStr == "START") m->SetEstado(ESTADO_MOTOR::START);
+                    else if (estadoStr == "AVARIADO") m->SetEstado(ESTADO_MOTOR::AVARIADO);
+                    else m->SetEstado(ESTADO_MOTOR::STOP);
+
+                    motores.push_back(m);
+                }
+            }
+            pos = fim + tagFechar.length();
         }
     }
 
-    campoX           = novoX;
-    campoY           = novoY;
-    horaAbertura     = novaAbertura;
-    horaEncerramento = novoEncerramento;
-    nomeFabrica      = novoNome;
+    // 3. Ler seccao <SENSORES>
+    string secSensores = ExtrairTagXML(conteudo, "SENSORES");
+    string tagsSensores[6] = { "SHUMIDADE", "SLUZ", "SFUMO", "SMISSIL", "STEMPERATURA", "SFOGO" };
 
-    verde   = novoComb.verde;
-    amarelo = novoComb.amarelo;
-    vermelho= novoComb.vermelho;
+    for (int sIdx = 0; sIdx < 6; sIdx++) {
+        string tagS = tagsSensores[sIdx];
+        string tagAbrir = "<" + tagS + ">";
+        string tagFechar = "</" + tagS + ">";
+        size_t pos = 0;
 
-    moverMotores(novosMotores);
-    moverSensores(novosSensores);
+        while ((pos = secSensores.find(tagAbrir, pos)) != string::npos) {
+            size_t fim = secSensores.find(tagFechar, pos);
+            if (fim == string::npos) break;
+
+            string bloco = secSensores.substr(pos + tagAbrir.length(), fim - (pos + tagAbrir.length()));
+
+            int id = atoi(ExtrairTagXML(bloco, "ID").c_str());
+            string marca = ExtrairTagXML(bloco, "MARCA");
+            double valorAviso = atof(ExtrairTagXML(bloco, "VALOR_AVISO").c_str());
+            double prob = NormalizarProbabilidade(atof(ExtrairTagXML(bloco, "PROB_AVARIA").c_str()));
+            double valorAtual = atof(ExtrairTagXML(bloco, "VALOR_ATUAL").c_str());
+
+            int x = 0, y = 0;
+            ExtrairParInt(ExtrairTagXML(bloco, "POSICAO"), x, y);
+
+            if (x >= 0 && x <= dimensaoX && y >= 0 && y <= dimensaoY && ProcurarSensor(id) == NULL) {
+                Sensor* s = NULL;
+                if (tagS == "SHUMIDADE") {
+                    s = new SensorHumidade(id, marca, valorAtual, prob, x, y, valorAviso, vizinhancaAviso);
+                } else if (tagS == "SLUZ") {
+                    s = new SensorLuz(id, marca, valorAtual, prob, x, y, valorAviso);
+                } else if (tagS == "SFUMO") {
+                    s = new SensorFumo(id, marca, valorAtual, prob, x, y, valorAviso);
+                } else if (tagS == "SMISSIL") {
+                    s = new SensorMissel(id, marca, valorAtual, prob, x, y);
+                } else if (tagS == "SFOGO") {
+                    s = new SensorFogo(id, marca, valorAtual, prob, x, y, valorAviso);
+                } else {
+                    s = new SensorTemperatura(id, marca, valorAtual, prob, x, y, valorAviso);
+                }
+
+                if (s != NULL) {
+                    sensores.push_back(s);
+                }
+            }
+            pos = fim + tagFechar.length();
+        }
+    }
+
     return true;
 }
 
-bool Fabrica::Add(User* ut)
-{
-    if (ut == NULL || !podeAdicionar())
-    {
+// ==================== UTILIZADORES E ADICAO ====================
+
+/**
+ * @brief Adiciona um novo utilizador à lista da fábrica.
+ * @param ut Ponteiro para o utilizador a adicionar.
+ * @return true se adicionado com sucesso; false caso contrário.
+ */
+bool Fabrica::Add(User *ut) {
+    if (ut == NULL) return false;
+    if (userAtual != NULL && !userAtual->PodeAdicionar()) {
+        cout << "Permissao negada: utilizador atual nao pode adicionar utilizadores.\n";
         return false;
     }
-
-    if (ut->GetId() <= 0 || ut->GetNome().empty())
-    {
-        return false;
+    for (list<User*>::iterator it = utilizadores.begin(); it != utilizadores.end(); ++it) {
+        if ((*it)->GetId() == ut->GetId()) return false;
     }
-
-    if (idUtilizadorExiste(utilizadores, ut->GetId()))
-    {
-        return false;
-    }
-
     utilizadores.push_back(ut);
     return true;
 }
 
-bool Fabrica::Add(Motor* m)
-{
-    if (m == NULL || !podeAdicionar())
-    {
+/**
+ * @brief Adiciona um novo motor à fábrica se o ID for único e a posição válida.
+ * @param m Ponteiro para o motor a adicionar.
+ * @return true se adicionado com sucesso; false caso contrário.
+ */
+bool Fabrica::Add(Motor *m) {
+    if (m == NULL) return false;
+    if (userAtual != NULL && !userAtual->PodeAdicionar()) {
+        cout << "Permissao negada: utilizador atual nao pode adicionar motores.\n";
         return false;
     }
-
-    if (m->GetId() <= 0 || m->GetTipo().empty() || m->GetMarca().empty())
-    {
-        return false;
-    }
-
-    if (!posicaoValida(m->GetX(), m->GetY(), campoX, campoY))
-    {
-        return false;
-    }
-
-    if (idMotorExiste(motores, m->GetId()))
-    {
-        return false;
-    }
-
+    if (m->GetX() < 0 || m->GetX() > dimensaoX || m->GetY() < 0 || m->GetY() > dimensaoY) return false;
+    if (ProcurarMotor(m->GetId()) != NULL) return false;
     motores.push_back(m);
     return true;
 }
 
-bool Fabrica::Add(Sensor* s)
-{
-    if (s == NULL || !podeAdicionar())
-    {
+/**
+ * @brief Adiciona um novo sensor à fábrica se o ID for único e a posição válida.
+ * @param s Ponteiro para o sensor a adicionar.
+ * @return true se adicionado com sucesso; false caso contrário.
+ */
+bool Fabrica::Add(Sensor *s) {
+    if (s == NULL) return false;
+    if (userAtual != NULL && !userAtual->PodeAdicionar()) {
+        cout << "Permissao negada: utilizador atual nao pode adicionar sensores.\n";
         return false;
     }
-
-    if (s->GetId() <= 0 || s->GetMarca().empty())
-    {
-        return false;
-    }
-
-    if (!posicaoValida(s->GetX(), s->GetY(), campoX, campoY))
-    {
-        return false;
-    }
-
-    if (idSensorExiste(sensores, s->GetId()))
-    {
-        return false;
-    }
-
+    if (s->GetX() < 0 || s->GetX() > dimensaoX || s->GetY() < 0 || s->GetY() > dimensaoY) return false;
+    if (ProcurarSensor(s->GetId()) != NULL) return false;
     sensores.push_back(s);
     return true;
 }
 
-bool Fabrica::RemoverUtilizador(int id)
-{
-    if (!podeRemover())
-    {
+/**
+ * @brief Remove um motor ou sensor da fábrica pelo seu ID.
+ * @param id Identificador do equipamento a remover.
+ * @return true se o equipamento foi encontrado e removido; false caso contrário.
+ */
+bool Fabrica::Remover(int id) {
+    if (userAtual != NULL && !userAtual->PodeRemover()) {
+        cout << "Permissao negada: apenas ADMIN pode remover dispositivos.\n";
         return false;
     }
-
-    for (list<User*>::iterator it = utilizadores.begin(); it != utilizadores.end(); ++it)
-    {
-        if ((*it)->GetId() == id)
-        {
-            if (*it == utilizadorAtual)
-            {
-                return false;
-            }
-            delete *it;
-            utilizadores.erase(it);
-            return true;
-        }
-    }
-
-    return false;
-}
-
-bool Fabrica::RemoverMotor(int id)
-{
-    if (!podeRemover())
-    {
-        return false;
-    }
-
-    for (list<Motor*>::iterator it = motores.begin(); it != motores.end(); ++it)
-    {
-        if ((*it)->GetId() == id)
-        {
+    for (list<Motor*>::iterator it = motores.begin(); it != motores.end(); ++it) {
+        if ((*it)->GetId() == id) {
             delete *it;
             motores.erase(it);
             return true;
         }
     }
-
+    for (list<Sensor*>::iterator it = sensores.begin(); it != sensores.end(); ++it) {
+        if ((*it)->GetId() == id) {
+            delete *it;
+            sensores.erase(it);
+            return true;
+        }
+    }
     return false;
 }
 
-void Fabrica::Listar(ostream& f) const
-{
-    if (!podeListar())
-    {
+/**
+ * @brief Define o utilizador atual da sessão.
+ * @param ut Ponteiro para o utilizador.
+ */
+void Fabrica::SetUserAtual(User *ut) {
+    userAtual = ut;
+}
+
+/**
+ * @brief Obtém o utilizador atual da sessão.
+ * @return Ponteiro para o utilizador ativo.
+ */
+User* Fabrica::GetUserAtual() const {
+    return userAtual;
+}
+
+// ==================== LISTAGEM E CONTROLO ====================
+
+/**
+ * @brief Escreve o estado detalhado da fábrica para uma stream de saída.
+ * @param f Stream de saída (ex.: cout ou ficheiro).
+ */
+void Fabrica::Listar(ostream &f) {
+    if (userAtual != NULL && !userAtual->PodeListar()) {
+        f << "Permissao negada para listar.\n";
         return;
     }
-
-    f << "=== Fabrica ===" << endl;
-    f << "Campo: " << campoX << " x " << campoY << endl;
-    f << "Horario: " << horaAbertura << " - " << horaEncerramento << endl;
-
-    if (utilizadorAtual != NULL)
-    {
-        f << "Utilizador actual: " << utilizadorAtual->GetNome()
-          << " (" << utilizadorAtual->GetTipo() << ")" << endl;
+    f << "\n=== ESTADO DA FABRICA: " << nome << " (" << horaAbertura << "h - " << horaFecho
+      << "h | Hora Atual: " << horaSimulada << ":";
+    if (minutoSimulado < 10) {
+        f << "0";
     }
+    f << minutoSimulado << " | Area: " << dimensaoX << "x" << dimensaoY << ") ===\n";
 
-    f << endl
-      << "Utilizadores:" << endl;
-    for (list<User*>::const_iterator it = utilizadores.begin(); it != utilizadores.end(); ++it)
-    {
-        User* u = *it;
-        f << "- " << u->GetId() << " " << u->GetNome() << " [" << u->GetTipo() << "]" << endl;
-    }
-
-    f << endl
-      << "Motores:" << endl;
-    for (list<Motor*>::const_iterator it = motores.begin(); it != motores.end(); ++it)
-    {
+    for (list<Motor*>::iterator it = motores.begin(); it != motores.end(); ++it) {
         Motor* m = *it;
-        f << "- id " << m->GetId()
-          << " | " << m->GetTipo()
-          << " | " << m->GetMarca()
-          << " | (" << m->GetX() << ", " << m->GetY() << ")"
-          << " | " << textoEstado(m->GetEstado())
-          << " | " << textoClasse(m->GetClasseTemperatura())
-          << " | temp " << m->GetTemperaturaAtual()
-          << " | consumo/h " << m->GetConsumoHora()
-          << " | consumo dia " << m->GetConsumoDia()
-          << " | trabalho " << m->GetTempoTrabalho()
-          << " | avarias " << m->GetTotalAvarias()
-          << endl;
+        string est = "STOP";
+        if (m->GetEstado() == ESTADO_MOTOR::START) est = "START";
+        else if (m->GetEstado() == ESTADO_MOTOR::RUN) est = "RUN";
+        else if (m->GetEstado() == ESTADO_MOTOR::AVARIADO) est = "AVARIADO";
+
+        f << "[MOTOR] ID: " << m->GetId() << " | Tipo: " << m->GetTipo()
+          << " | Marca: " << m->GetMarca() << " | Pos: (" << m->GetX() << "," << m->GetY() << ")"
+          << " | Estado: " << est << " | Temp: " << m->GetTemperaturaAtual()
+          << " | ConsumoDia: " << m->GetConsumoDia() << "\n";
     }
 
-    f << endl
-      << "Sensores:" << endl;
-    for (list<Sensor*>::const_iterator it = sensores.begin(); it != sensores.end(); ++it)
-    {
+    for (list<Sensor*>::iterator it = sensores.begin(); it != sensores.end(); ++it) {
         Sensor* s = *it;
-        f << "- id " << s->GetId()
-          << " | " << s->GetTipo()
-          << " | " << s->GetMarca()
-          << " | (" << s->GetX() << ", " << s->GetY() << ")"
-          << " | valor " << s->GetValor();
-
-        if (s->EmAviso())
-        {
-            f << " | aviso";
-        }
-        else
-        {
-            f << " | normal";
+        string textoAviso = "NAO";
+        if (s->EmAviso()) {
+            textoAviso = "SIM";
         }
 
-        f << endl;
+        string textoAvariado = "NAO";
+        if (s->EstaAvariado()) {
+            textoAvariado = "SIM";
+        }
+
+        f << "[SENSOR] ID: " << s->GetId() << " | Tipo: " << s->GetTipo()
+          << " | Marca: " << s->GetMarca() << " | Pos: (" << s->GetX() << "," << s->GetY() << ")"
+          << " | Valor: " << s->GetValor() << " | Aviso: " << textoAviso
+          << " | Avariado: " << textoAvariado << "\n";
     }
 }
 
-void Fabrica::Desligar(int id_motor)
-{
-    if (!podeRun())
-    {
-        return;
-    }
-
-    Motor* motor = procurarMotor(id_motor);
-    if (motor == NULL)
-    {
-        return;
-    }
-
-    motor->STOP();
+/**
+ * @brief Verifica se existe um motor registado com o identificador indicado.
+ * @param id Identificador do motor.
+ * @return true se existir; false caso contrário.
+ */
+bool Fabrica::ExisteMotor(int id) const {
+    return ProcurarMotor(id) != NULL;
 }
 
-void Fabrica::ReiniciarMotor(int id_motor)
-{
-    if (!podeRun())
-    {
+/**
+ * @brief Liga um motor específico (coloca em START) se o utilizador tiver permissão, a fábrica estiver aberta e o ID existir.
+ * @param id_motor Identificador do motor a ligar.
+ * @return true se o comando foi aceite; false caso contrário.
+ */
+bool Fabrica::Ligar(int id_motor) {
+    if (userAtual != NULL && !userAtual->PodeRun()) {
+        cout << "Permissao negada para ligar motores.\n";
+        return false;
+    }
+    if (!fabricaAtiva || !EstaAberta()) {
+        cout << "Nao e possivel ligar o motor: fabrica fechada ou inativa.\n";
+        return false;
+    }
+    Motor* m = ProcurarMotor(id_motor);
+    if (m == NULL) {
+        cout << "Erro: Motor com ID " << id_motor << " nao encontrado.\n";
+        return false;
+    }
+
+    m->START();
+    cout << "Comando START enviado ao motor " << id_motor << ".\n";
+    return true;
+}
+
+/**
+ * @brief Pára um motor específico pelo seu identificador, validando a sua existência.
+ * @param id_motor Identificador do motor a desligar.
+ */
+void Fabrica::Desligar(int id_motor) {
+    if (userAtual != NULL && !userAtual->PodeRun()) {
+        cout << "Permissao negada para desligar motores.\n";
+        return;
+    }
+    Motor* m = ProcurarMotor(id_motor);
+    if (m == NULL) {
+        cout << "Erro: Motor com ID " << id_motor << " nao encontrado.\n";
         return;
     }
 
-    Motor* motor = procurarMotor(id_motor);
-    if (motor == NULL)
-    {
-        return;
-    }
-
-    motor->RESTART();
-    cout << "Motor " << id_motor << " reiniciado (RESTART)." << endl;
+    m->STOP();
+    cout << "Comando STOP enviado ao motor " << id_motor << ".\n";
 }
 
-ESTADO_MOTOR Fabrica::Get_Estado(int id_motor) const
-{
-    if (!podeListar())
-    {
-        return STOP;
+/**
+ * @brief Obtém o estado operacional atual de um motor.
+ * @param id_motor Identificador do motor.
+ * @return Estado atual do motor (STOP, START, RUN ou AVARIADO).
+ */
+ESTADO_MOTOR Fabrica::Get_Estado(int id_motor) {
+    Motor* m = ProcurarMotor(id_motor);
+    if (m == NULL) {
+        return ESTADO_MOTOR::STOP;
     }
-
-    Motor* motor = procurarMotor(id_motor);
-    if (motor == NULL)
-    {
-        return STOP;
-    }
-
-    return motor->GetEstado();
+    if (m->EstaAvariado()) return ESTADO_MOTOR::AVARIADO;
+    return m->GetEstado();
 }
 
-list<Motor*>* Fabrica::Listar_Tipo(string Tipo, ostream& f) const
-{
-    if (!podeListar())
-    {
-        return NULL;
+/**
+ * @brief Lista os motores de um determinado tipo e devolve-os numa lista ligada.
+ * @param Tipo Designação do tipo de motor (ex.: "MCOMBUSTAO").
+ * @param f Stream de saída para listagem.
+ * @return Ponteiro para lista com os motores encontrados.
+ */
+list<Motor*> *Fabrica::Listar_Tipo(string Tipo, ostream &f) {
+    list<Motor*> *resultado = new list<Motor*>();
+    if (userAtual != NULL && !userAtual->PodeListar()) {
+        return resultado;
     }
-
-    for (size_t i = 0; i < Tipo.size(); ++i)
-    {
-        Tipo[i] = (char)toupper((unsigned char)Tipo[i]);
-    }
-
-    list<Motor*>* resultado = new list<Motor*>();
-
-    for (list<Motor*>::const_iterator it = motores.begin(); it != motores.end(); ++it)
-    {
+    f << "\n--- MOTORES DO TIPO: " << Tipo << " ---\n";
+    for (list<Motor*>::iterator it = motores.begin(); it != motores.end(); ++it) {
         Motor* m = *it;
-        if (m->GetTipo() == Tipo)
-        {
+        if (m->GetTipo() == Tipo) {
             resultado->push_back(m);
-            f << m->GetId() << " " << m->GetMarca() << " " << textoEstado(m->GetEstado()) << endl;
+            f << "ID: " << m->GetId() << " | Marca: " << m->GetMarca()
+              << " | Temp: " << m->GetTemperaturaAtual() << "\n";
         }
     }
-
-    if (resultado->empty())
-    {
-        f << "Nenhum motor do tipo \"" << Tipo << "\". Tipos disponiveis: MCOMBUSTAO, MELETRICO, MINDUCAO" << endl;
-    }
-
     return resultado;
 }
 
-bool Fabrica::Manutencao()
-{
-    if (!podeManutencao())
-    {
-        return false;
-    }
+// ==================== SIMULACAO E MANUTENCAO ====================
 
-    for (list<Motor*>::iterator it = motores.begin(); it != motores.end(); ++it)
-    {
-        Motor* m = *it;
-        IntervaloTemperatura ivVerde = m->GetIntervaloVerde();
-        double amplitude = ivVerde.maximo - ivVerde.minimo;
-        double novaTemp = ivVerde.minimo;
-        if (amplitude > 0.0)
-        {
-            novaTemp = ivVerde.minimo + (rand() % 10001) / 10000.0 * amplitude;
-        }
-        m->SetTemperaturaAtual(novaTemp);
-        m->Reparar();
-    }
-
-    for (list<Sensor*>::iterator it = sensores.begin(); it != sensores.end(); ++it)
-    {
-        (*it)->Repor();
-    }
-
-    return true;
-}
-
-list<string>* Fabrica::Ranking_Dos_Fracos() const
-{
-    if (!podeListar())
-    {
-        return NULL;
-    }
-
-    map<string, int> totais;
-    acumularAvarias(totais);
-
-    list<MarcaAvarias> ordenada;
-    for (map<string, int>::const_iterator it = totais.begin(); it != totais.end(); ++it)
-    {
-        inserirMarca(ordenada, it->first, it->second);
-    }
-
-    list<string>* ranking = new list<string>();
-    for (list<MarcaAvarias>::const_iterator it = ordenada.begin(); it != ordenada.end(); ++it)
-    {
-        ranking->push_back(it->marca);
-    }
-
-    return ranking;
-}
-
-list<Motor*>* Fabrica::Ranking_Dos_Mais_Trabalhadores() const
-{
-    if (!podeListar())
-    {
-        return NULL;
-    }
-
-    list<Motor*>* ranking = new list<Motor*>();
-
-    for (list<Motor*>::const_iterator it = motores.begin(); it != motores.end(); ++it)
-    {
-        inserirPorTrabalho(*ranking, *it);
-    }
-
-    return ranking;
-}
-
-void Fabrica::Relatorio(string fich_xml) const
-{
-    if (!podeListar() || fich_xml.empty())
-    {
+/**
+ * @brief Executa um passo completo de 10 minutos na simulação da fábrica.
+ */
+void Fabrica::StepSimulacao() {
+    if (!fabricaAtiva) {
+        cout << "[SISTEMA] Fabrica encerrada por alerta de emergencia.\n";
         return;
     }
 
-    ofstream saida(fich_xml.c_str());
-    if (!saida.is_open())
-    {
-        return;
-    }
+    bool aberta = EstaAberta();
 
-    saida << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << endl;
-    saida << "<relatorio>" << endl;
-    saida << "  <fabrica campo_x=\"" << campoX << "\" campo_y=\"" << campoY << "\""
-          << " abertura=\"" << horaAbertura << "\" encerramento=\"" << horaEncerramento << "\"/>" << endl;
-
-    saida << "  <motores>" << endl;
-    for (list<Motor*>::const_iterator it = motores.begin(); it != motores.end(); ++it)
-    {
+    for (list<Motor*>::iterator it = motores.begin(); it != motores.end(); ++it) {
         Motor* m = *it;
-        saida << "    <motor id=\"" << m->GetId() << "\""
-              << " tipo=\"" << m->GetTipo() << "\""
-              << " marca=\"" << m->GetMarca() << "\""
-              << " estado=\"" << textoEstado(m->GetEstado()) << "\""
-              << " temperatura=\"" << m->GetTemperaturaAtual() << "\""
-              << " classe=\"" << textoClasse(m->GetClasseTemperatura()) << "\""
-              << " consumo_dia=\"" << m->GetConsumoDia() << "\""
-              << " tempo_trabalho=\"" << m->GetTempoTrabalho() << "\""
-              << " avarias=\"" << m->GetTotalAvarias() << "\"/>" << endl;
-    }
-    saida << "  </motores>" << endl;
 
-    saida << "  <sensores>" << endl;
-    for (list<Sensor*>::const_iterator it = sensores.begin(); it != sensores.end(); ++it)
-    {
-        Sensor* s = *it;
-        saida << "    <sensor id=\"" << s->GetId() << "\""
-              << " tipo=\"" << s->GetTipo() << "\""
-              << " marca=\"" << s->GetMarca() << "\""
-              << " valor=\"" << s->GetValor() << "\""
-              << " aviso=\"" << (s->EmAviso() ? "sim" : "nao") << "\""
-              << " avarias=\"" << s->GetTotalAvarias() << "\"/>" << endl;
-    }
-    saida << "  </sensores>" << endl;
-
-    saida << "</relatorio>" << endl;
-    saida.close();
-}
-
-int Fabrica::Aviso_Humidade(list<Motor*>& lm)
-{
-    lm.clear();
-
-    for (list<Sensor*>::iterator its = sensores.begin(); its != sensores.end(); ++its)
-    {
-        Sensor* s = *its;
-        if (s->GetTipo() != "HUMIDADE" || !s->EmAviso())
-        {
+        if (!aberta) {
+            if (m->GetEstado() == ESTADO_MOTOR::START || m->GetEstado() == ESTADO_MOTOR::RUN) {
+                m->STOP();
+            }
+            m->Arrefecer(2.0);
             continue;
         }
 
-        int raio = s->GetRaioVizinhanca();
+        if (m->GetEstado() == ESTADO_MOTOR::STOP) {
+            m->Arrefecer(1.0);
+        } else if (m->GetEstado() == ESTADO_MOTOR::START || m->GetEstado() == ESTADO_MOTOR::RUN) {
+            CLASSE_TEMPERATURA antes = m->ESTOU_QUENTE();
+            m->RUN();
+            CLASSE_TEMPERATURA depois = m->ESTOU_QUENTE();
 
-        for (list<Motor*>::iterator itm = motores.begin(); itm != motores.end(); ++itm)
-        {
-            Motor* m = *itm;
-            int dx = m->GetX() - s->GetX();
-            int dy = m->GetY() - s->GetY();
-            double dist = sqrt((double)(dx * dx + dy * dy));
-
-            bool jaNaLista = false;
-            for (list<Motor*>::iterator ild = lm.begin(); ild != lm.end(); ++ild)
-            {
-                if (*ild == m) { jaNaLista = true; break; }
+            if (depois == AMARELO && antes != AMARELO) {
+                cout << "[AVISO GESTOR] Motor ID " << m->GetId() << " entrou na zona AMARELA!\n";
+            } else if (depois == VERMELHO) {
+                cout << "[ALERTA GESTOR] Motor ID " << m->GetId() << " atingiu zona VERMELHA -> STOP!\n";
             }
+        }
+    }
 
-            if (dist <= raio && m->GetEstado() != STOP && m->GetEstado() != AVARIADO && !jaNaLista)
-            {
+    AtualizarSensores();
+    SimularAvarias();
+
+    list<Motor*> desligados;
+    Aviso_Humidade(desligados);
+    Aviso_Fumo(desligados, "videos/aviso_fumo.mp4");
+    Aviso_Luz("videos/aviso_luz.mp4");
+    Aviso_Missel("videos/aviso_missel.mp4", "Estado.txt");
+
+    AvancarRelogio(10);
+}
+
+/**
+ * @brief Realiza manutenção preventiva e corretiva em todos os equipamentos.
+ * @return true se a manutenção foi realizada; false por falta de permissão.
+ */
+bool Fabrica::Manutencao() {
+    if (userAtual != NULL && !userAtual->PodeManutencao()) {
+        cout << "Permissao negada para manutencao.\n";
+        return false;
+    }
+    for (list<Motor*>::iterator it = motores.begin(); it != motores.end(); ++it) {
+        Motor* m = *it;
+        m->Reparar();
+        m->STOP();
+        string strV = defVerde[m->GetTipo()];
+        double minV = 0.0, maxV = m->GetTemperaturaAviso() - 1.0;
+        if (!strV.empty()) {
+            ExtrairParDouble(strV, minV, maxV);
+        }
+        double amp = maxV - minV;
+        if (amp <= 0) amp = 10.0;
+        double novaTemp = minV + ((rand() % 10001) / 10000.0) * amp;
+        m->SetTemperaturaAtual(novaTemp);
+    }
+    for (list<Sensor*>::iterator it = sensores.begin(); it != sensores.end(); ++it) {
+        (*it)->Reparar();
+    }
+    fabricaAtiva = true;
+    cout << "[MANUTENCAO] Todos os motores e sensores foram reparados e a fabrica esta novamente ativa.\n";
+    return true;
+}
+
+// ==================== RANKINGS ====================
+
+/**
+ * @brief Gera o ranking das marcas ordenadas pelo maior número total de avarias.
+ * @return Ponteiro para a lista ordenada de nomes de marcas.
+ */
+list<string> *Fabrica::Ranking_Dos_Fracos() {
+    if (userAtual != NULL && !userAtual->PodeListar()) {
+        cout << "Permissao negada: utilizador atual nao pode consultar rankings.\n";
+        return NULL;
+    }
+    map<string, int> avariasPorMarca;
+    for (list<Motor*>::iterator it = motores.begin(); it != motores.end(); ++it) {
+        avariasPorMarca[(*it)->GetMarca()] += (*it)->GetTotalAvarias();
+    }
+    for (list<Sensor*>::iterator it = sensores.begin(); it != sensores.end(); ++it) {
+        avariasPorMarca[(*it)->GetMarca()] += (*it)->GetTotalAvarias();
+    }
+
+    vector<pair<string, int> > vec(avariasPorMarca.begin(), avariasPorMarca.end());
+    for (size_t i = 0; i < vec.size(); i++) {
+        for (size_t j = i + 1; j < vec.size(); j++) {
+            if (vec[j].second > vec[i].second) {
+                pair<string, int> tmp = vec[i];
+                vec[i] = vec[j];
+                vec[j] = tmp;
+            }
+        }
+    }
+
+    list<string> *ranking = new list<string>();
+    for (size_t i = 0; i < vec.size(); i++) {
+        ranking->push_back(vec[i].first);
+    }
+    return ranking;
+}
+
+/**
+ * @brief Gera o ranking dos motores com maior tempo de trabalho acumulado.
+ * @return Ponteiro para a lista ordenada de ponteiros de motores.
+ */
+list<Motor*> *Fabrica::Ranking_Dos_Mais_Trabalhadores() {
+    if (userAtual != NULL && !userAtual->PodeListar()) {
+        cout << "Permissao negada: utilizador atual nao pode consultar rankings.\n";
+        return NULL;
+    }
+    list<Motor*> *ranking = new list<Motor*>();
+
+    for (list<Motor*>::iterator it = motores.begin(); it != motores.end(); ++it) {
+        Motor* atual = *it;
+        list<Motor*>::iterator pos = ranking->begin();
+        while (pos != ranking->end() && (*pos)->GetTempoTrabalho() >= atual->GetTempoTrabalho()) {
+            ++pos;
+        }
+        ranking->insert(pos, atual);
+    }
+    return ranking;
+}
+
+// ==================== RELATORIO XML E HTML ====================
+
+/**
+ * @brief Exporta o estado atual da fábrica para um ficheiro XML no formato oficial.
+ * @param fich_xml Caminho/nome do ficheiro XML a criar.
+ * @return true se gravou com sucesso; false caso contrário.
+ */
+void Fabrica::Relatorio(string fich_xml) {
+    ofstream f(fich_xml.c_str());
+    if (!f.is_open()) {
+        cout << "Erro: Nao foi possivel escrever em " << fich_xml << " (fecha o ficheiro se estiver aberto!).\n";
+        return;
+    }
+
+    f << "<DADOS>\n";
+    f << "<DEFINICOES>\n";
+    f << "<NOME_EMPRESA>" << nome << "</NOME_EMPRESA>\n";
+    f << "<HORA_INICIO>" << horaAbertura << "</HORA_INICIO>\n";
+    f << "<HORA_FECHO>" << horaFecho << "</HORA_FECHO>\n";
+    f << "<VIZINHANCA_AVISO>" << vizinhancaAviso << "</VIZINHANCA_AVISO>\n";
+    f << "<DIMENSAO_FABRICA>" << dimensaoX << "," << dimensaoY << "</DIMENSAO_FABRICA>\n";
+
+    string tiposMotor[3] = { "MELETRICO", "MCOMBUSTAO", "MINDUCAO" };
+    for (int i = 0; i < 3; i++) {
+        string t = tiposMotor[i];
+        if (!defVerde[t].empty()) {
+            f << "<" << t << ">\n";
+            f << "<VERDE>" << defVerde[t] << "</VERDE>\n";
+            f << "<AMARELO>" << defAmarelo[t] << "</AMARELO>\n";
+            f << "<VERMELHO>" << defVermelho[t] << "</VERMELHO>\n";
+            f << "<PROB_AVARIA>" << defProbAvaria[t] << "</PROB_AVARIA>\n";
+            f << "</" << t << ">\n";
+        }
+    }
+    f << "</DEFINICOES>\n";
+
+    f << "<MOTORES>\n";
+    for (list<Motor*>::iterator it = motores.begin(); it != motores.end(); ++it) {
+        Motor* m = *it;
+        string est = "STOP";
+        if (m->GetEstado() == ESTADO_MOTOR::START) est = "START";
+        else if (m->GetEstado() == ESTADO_MOTOR::RUN) est = "RUN";
+        else if (m->GetEstado() == ESTADO_MOTOR::AVARIADO) est = "AVARIADO";
+
+        string cor = "VERDE";
+        CLASSE_TEMPERATURA cl = m->ESTOU_QUENTE();
+        if (cl == AMARELO) cor = "AMARELO";
+        else if (cl == VERMELHO) cor = "VERMELHO";
+
+        f << "<" << m->GetTipo() << ">\n";
+        f << "<ID>" << m->GetId() << "</ID>\n";
+        f << "<MARCA>" << m->GetMarca() << "</MARCA>\n";
+        f << "<VALOR_TEMP_ATUAL>" << m->GetTemperaturaAtual() << "</VALOR_TEMP_ATUAL>\n";
+        f << "<ESTADO_ATUAL>" << est << "</ESTADO_ATUAL>\n";
+        f << "<ESTADO_COR>" << cor << "</ESTADO_COR>\n";
+        f << "<CONSUMO_HORA>" << m->GetConsumoHora() << "</CONSUMO_HORA>\n";
+        f << "<CONSUMO_DIA>" << m->GetConsumoDia() << "</CONSUMO_DIA>\n";
+        f << "<TEMPO_TRABALHO>" << m->GetTempoTrabalho() << "</TEMPO_TRABALHO>\n";
+        f << "<POSICAO>" << m->GetX() << "," << m->GetY() << "</POSICAO>\n";
+        f << "</" << m->GetTipo() << ">\n";
+    }
+    f << "</MOTORES>\n";
+
+    f << "<SENSORES>\n";
+    for (list<Sensor*>::iterator it = sensores.begin(); it != sensores.end(); ++it) {
+        Sensor* s = *it;
+        string tagS = "S" + s->GetTipo();
+        double probXml = s->GetProbabilidadeAvaria() * 100.0;
+
+        f << "<" << tagS << ">\n";
+        f << "<ID>" << s->GetId() << "</ID>\n";
+        f << "<MARCA>" << s->GetMarca() << "</MARCA>\n";
+        f << "<VALOR_AVISO>" << s->GetLimiar() << "</VALOR_AVISO>\n";
+        f << "<POSICAO>" << s->GetX() << "," << s->GetY() << "</POSICAO>\n";
+        f << "<PROB_AVARIA>" << probXml << "</PROB_AVARIA>\n";
+        f << "<VALOR_ATUAL>" << s->GetValor();
+        if (tagS == "SHUMIDADE") {
+            f << "%";
+        }
+        f << "</VALOR_ATUAL>\n";
+        f << "</" << tagS << ">\n";
+    }
+    f << "</SENSORES>\n";
+    f << "</DADOS>\n";
+    f.close();
+}
+
+/**
+ * @brief Gera uma página HTML com o resumo do estado atual da fábrica.
+ * @param fich_html Caminho/nome do ficheiro HTML a criar.
+ */
+void Fabrica::Listagem_HTML(string fich_html) {
+    ofstream f(fich_html.c_str());
+    if (!f.is_open()) return;
+
+    f << "<!DOCTYPE html>\n<html><head><meta charset=\"UTF-8\"><title>" << nome << "</title></head><body>\n";
+    f << "<h1>Estado Atual da Fabrica: " << nome << "</h1>\n";
+    f << "<table border=\"1\" cellpadding=\"6\">\n";
+    f << "<tr><th>Categoria</th><th>ID</th><th>Tipo</th><th>Marca</th><th>Posicao</th><th>Detalhe</th></tr>\n";
+
+    for (list<Motor*>::iterator it = motores.begin(); it != motores.end(); ++it) {
+        Motor* m = *it;
+        f << "<tr><td>Motor</td><td>" << m->GetId() << "</td><td>" << m->GetTipo()
+          << "</td><td>" << m->GetMarca() << "</td><td>(" << m->GetX() << "," << m->GetY() << ")</td>"
+          << "<td>Temp: " << m->GetTemperaturaAtual() << "C | Consumo: " << m->GetConsumoDia() << "</td></tr>\n";
+    }
+    for (list<Sensor*>::iterator it = sensores.begin(); it != sensores.end(); ++it) {
+        Sensor* s = *it;
+        string textoAviso = "NAO";
+        if (s->EmAviso()) {
+            textoAviso = "SIM";
+        }
+
+        f << "<tr><td>Sensor</td><td>" << s->GetId() << "</td><td>" << s->GetTipo()
+          << "</td><td>" << s->GetMarca() << "</td><td>(" << s->GetX() << "," << s->GetY() << ")</td>"
+          << "<td>Valor: " << s->GetValor() << " | Aviso: " << textoAviso << "</td></tr>\n";
+    }
+    f << "</table>\n</body></html>\n";
+    f.close();
+}
+
+// ==================== AVISOS DOS SENSORES ====================
+
+/**
+ * @brief Desliga os motores situados dentro do raio de vizinhança de sensores de humidade em aviso.
+ * @param lm Lista onde serão guardados os motores desligados.
+ * @return Número total de motores desligados.
+ */
+int Fabrica::Aviso_Humidade(list<Motor*> &lm) {
+    lm.clear();
+    int desligados = 0;
+
+    for (list<Sensor*>::iterator it = sensores.begin(); it != sensores.end(); ++it) {
+        Sensor* s = *it;
+        if (s->GetTipo() == "HUMIDADE" && s->EmAviso()) {
+            int raio = s->GetRaioVizinhanca();
+            if (raio <= 0) raio = vizinhancaAviso;
+
+            for (list<Motor*>::iterator mIt = motores.begin(); mIt != motores.end(); ++mIt) {
+                Motor* m = *mIt;
+                if (CalcularDistancia(s->GetX(), s->GetY(), m->GetX(), m->GetY()) <= raio) {
+                    if (m->GetEstado() != ESTADO_MOTOR::STOP) {
+                        m->STOP();
+                        lm.push_back(m);
+                        desligados++;
+                    }
+                }
+            }
+        }
+    }
+    if (desligados > 0) {
+        cout << "[AVISO GESTOR] Humidade elevada! Motores desligados na vizinhanca: " << desligados << "\n";
+    }
+    return desligados;
+}
+
+/**
+ * @brief Em caso de aviso de fumo/fogo, desliga todos os motores e gera o ficheiro de emergência.
+ * @param lm Lista onde serão guardados os motores desligados.
+ * @param fich_video Nome do ficheiro de vídeo/aviso a gerar.
+ * @return Número total de motores desligados.
+ */
+int Fabrica::Aviso_Fumo(list<Motor*> &lm, string fich_video) {
+    lm.clear();
+    int desligados = 0;
+    bool haFumo = false;
+
+    for (list<Sensor*>::iterator it = sensores.begin(); it != sensores.end(); ++it) {
+        if (((*it)->GetTipo() == "FUMO" || (*it)->GetTipo() == "FOGO") && (*it)->EmAviso()) {
+            haFumo = true;
+            break;
+        }
+    }
+
+    if (haFumo) {
+        for (list<Motor*>::iterator mIt = motores.begin(); mIt != motores.end(); ++mIt) {
+            Motor* m = *mIt;
+            if (m->GetEstado() != ESTADO_MOTOR::STOP) {
                 m->STOP();
                 lm.push_back(m);
+                desligados++;
             }
         }
-    }
-
-    if (!lm.empty())
-    {
-        cout << "[AVISO GESTOR] Sensor de HUMIDADE em aviso! " << lm.size() << " motor(es) desligado(s)." << endl;
-    }
-
-    return (int)lm.size();
-}
-
-int Fabrica::Aviso_Fumo(list<Motor*>& lm, string fich_video)
-{
-    lm.clear();
-
-    for (list<Motor*>::iterator it = motores.begin(); it != motores.end(); ++it)
-    {
-        Motor* m = *it;
-        if (m->GetEstado() != STOP && m->GetEstado() != AVARIADO)
-        {
-            m->STOP();
-            lm.push_back(m);
+        ofstream f(fich_video.c_str());
+        if (f.is_open()) {
+            f << "ALERTA DE FUMO/FOGO - DIRIJA-SE AS SAIDAS DE EMERGENCIA!\n";
+            f.close();
         }
+        ExecutarVideo("videos/aviso_fumo.mp4");
+        cout << "[AVISO GESTOR] Fumo/Fogo detetado! Motores desligados e video invocado (" << fich_video << ").\n";
     }
-
-    cout << "[AVISO GESTOR] Sensor de FUMO em aviso! Todos os motores desligados." << endl;
-
-    if (!fich_video.empty())
-    {
-        string cmd = "start \"\" \"" + fich_video + "\"";
-        system(cmd.c_str());
-    }
-
-    return (int)lm.size();
-}
-
-int Fabrica::Aviso_Luz(string fich_video)
-{
-    cout << "[AVISO] Luminosidade baixa â€” bom regresso a casa!" << endl;
-
-    if (!fich_video.empty())
-    {
-        string cmd = "start \"\" \"" + fich_video + "\"";
-        system(cmd.c_str());
-    }
-
-    return 1;
-}
-
-void Fabrica::Aviso_Missel(string fvideo, string festado)
-{
-    cout << "[ALERTA CRITICO] Missel detetado! A desligar a fabrica!" << endl;
-
-    for (list<Motor*>::iterator it = motores.begin(); it != motores.end(); ++it)
-    {
-        Motor* m = *it;
-        if (m->GetEstado() != AVARIADO)
-        {
-            m->STOP();
-        }
-    }
-
-    for (list<Sensor*>::iterator it = sensores.begin(); it != sensores.end(); ++it)
-    {
-        (*it)->Repor();
-    }
-
-    if (!festado.empty())
-    {
-        ofstream saida(festado.c_str());
-        if (saida.is_open())
-        {
-            Listar(saida);
-            saida.close();
-        }
-    }
-
-    if (!fvideo.empty())
-    {
-        string cmd = "start \"\" \"" + fvideo + "\"";
-        system(cmd.c_str());
-    }
-}
-
-void Fabrica::Listagem_HTML(string fich_html) const
-{
-    if (!podeListar() || fich_html.empty())
-    {
-        return;
-    }
-
-    ofstream saida(fich_html.c_str());
-    if (!saida.is_open())
-    {
-        return;
-    }
-
-    saida << "<!DOCTYPE html>" << endl;
-    saida << "<html lang=\"pt\">" << endl;
-    saida << "<head><meta charset=\"UTF-8\"><title>Estado da Fabrica</title>" << endl;
-    saida << "<style>" << endl;
-    saida << "body{font-family:Arial,sans-serif;margin:20px;background:#f4f4f4;}" << endl;
-    saida << "h1{color:#333;}h2{color:#555;}" << endl;
-    saida << "table{border-collapse:collapse;width:100%;margin-bottom:24px;}" << endl;
-    saida << "th{background:#4a90d9;color:#fff;padding:8px;}td{padding:7px;border:1px solid #ccc;}" << endl;
-    saida << "tr:nth-child(even){background:#e9f0fb;}" << endl;
-    saida << ".VERDE{background:#c8f7c5;}.AMARELO{background:#fff3b0;}.VERMELHO{background:#ffb3b3;}" << endl;
-    saida << ".STOP{color:#888;}.RUN{color:#27ae60;font-weight:bold;}.AVARIADO{color:#e74c3c;font-weight:bold;}" << endl;
-    saida << "</style></head>" << endl;
-    saida << "<body>" << endl;
-    saida << "<h1>Estado da Fabrica</h1>" << endl;
-    saida << "<p>Campo: " << campoX << " x " << campoY
-          << " &nbsp;|&nbsp; Horario: " << horaAbertura << "h - " << horaEncerramento << "h</p>" << endl;
-
-    saida << "<h2>Motores</h2>" << endl;
-    saida << "<table>" << endl;
-    saida << "<tr><th>ID</th><th>Tipo</th><th>Marca</th><th>Posicao</th><th>Estado</th>"
-          << "<th>Temperatura</th><th>Classe</th><th>Consumo/h</th><th>Consumo dia</th>"
-          << "<th>Tempo trabalho (min)</th><th>Avarias</th></tr>" << endl;
-
-    for (list<Motor*>::const_iterator it = motores.begin(); it != motores.end(); ++it)
-    {
-        Motor* m = *it;
-        string classe = textoClasse(m->GetClasseTemperatura());
-        string estado = textoEstado(m->GetEstado());
-        saida << "<tr class=\"" << classe << "\">"
-              << "<td>" << m->GetId() << "</td>"
-              << "<td>" << m->GetTipo() << "</td>"
-              << "<td>" << m->GetMarca() << "</td>"
-              << "<td>(" << m->GetX() << ", " << m->GetY() << ")</td>"
-              << "<td class=\"" << estado << "\">" << estado << "</td>"
-              << "<td>" << m->GetTemperaturaAtual() << "</td>"
-              << "<td>" << classe << "</td>"
-              << "<td>" << m->GetConsumoHora() << "</td>"
-              << "<td>" << m->GetConsumoDia() << "</td>"
-              << "<td>" << m->GetTempoTrabalho() << "</td>"
-              << "<td>" << m->GetTotalAvarias() << "</td>"
-              << "</tr>" << endl;
-    }
-    saida << "</table>" << endl;
-
-    saida << "<h2>Sensores</h2>" << endl;
-    saida << "<table>" << endl;
-    saida << "<tr><th>ID</th><th>Tipo</th><th>Marca</th><th>Posicao</th><th>Valor</th><th>Estado</th><th>Avarias</th></tr>" << endl;
-
-    for (list<Sensor*>::const_iterator it = sensores.begin(); it != sensores.end(); ++it)
-    {
-        Sensor* s = *it;
-        string aviso = s->EmAviso() ? "AVISO" : "Normal";
-        string cor = s->EmAviso() ? " style=\"background:#ffb3b3;\"" : "";
-        saida << "<tr" << cor << ">"
-              << "<td>" << s->GetId() << "</td>"
-              << "<td>" << s->GetTipo() << "</td>"
-              << "<td>" << s->GetMarca() << "</td>"
-              << "<td>(" << s->GetX() << ", " << s->GetY() << ")</td>"
-              << "<td>" << s->GetValor() << "</td>"
-              << "<td>" << aviso << "</td>"
-              << "<td>" << s->GetTotalAvarias() << "</td>"
-              << "</tr>" << endl;
-    }
-    saida << "</table>" << endl;
-
-    saida << "</body></html>" << endl;
-    saida.close();
-}
-
-int Fabrica::GetCampoX() const
-{
-    return campoX;
-}
-
-int Fabrica::GetCampoY() const
-{
-    return campoY;
-}
-
-bool Fabrica::podeAdicionar() const
-{
-    if (utilizadorAtual == NULL)
-    {
-        return false;
-    }
-
-    return utilizadorAtual->PodeAdicionar();
-}
-
-bool Fabrica::podeRemover() const
-{
-    if (utilizadorAtual == NULL)
-    {
-        return false;
-    }
-
-    return utilizadorAtual->PodeRemover();
-}
-
-bool Fabrica::podeListar() const
-{
-    if (utilizadorAtual == NULL)
-    {
-        return false;
-    }
-
-    return utilizadorAtual->PodeListar();
-}
-
-bool Fabrica::podeRun() const
-{
-    if (utilizadorAtual == NULL)
-    {
-        return false;
-    }
-
-    return utilizadorAtual->PodeRun();
-}
-
-bool Fabrica::podeManutencao() const
-{
-    if (utilizadorAtual == NULL)
-    {
-        return false;
-    }
-
-    return utilizadorAtual->PodeManutencao();
-}
-
-bool Fabrica::posicaoValida(int posX, int posY, int limiteX, int limiteY) const
-{
-    if (limiteX <= 0 || limiteY <= 0)
-    {
-        return false;
-    }
-
-    if (posX < 0 || posY < 0)
-    {
-        return false;
-    }
-
-    if (posX > limiteX || posY > limiteY)
-    {
-        return false;
-    }
-
-    return true;
-}
-
-bool Fabrica::horaValida(int hora) const
-{
-    return hora >= 0 && hora <= 23;
-}
-
-bool Fabrica::intervalosCoerentes(const IntervaloTemperatura& zonaVerde,
-                                  const IntervaloTemperatura& zonaAmarela,
-                                  const IntervaloTemperatura& zonaVermelha) const
-{
-    if (zonaVerde.minimo > zonaVerde.maximo)
-    {
-        return false;
-    }
-
-    if (zonaAmarela.minimo > zonaAmarela.maximo)
-    {
-        return false;
-    }
-
-    if (zonaVermelha.minimo > zonaVermelha.maximo)
-    {
-        return false;
-    }
-
-    if (zonaVerde.maximo >= zonaAmarela.minimo)
-    {
-        return false;
-    }
-
-    if (zonaAmarela.maximo >= zonaVermelha.minimo)
-    {
-        return false;
-    }
-
-    return true;
-}
-
-bool Fabrica::idUtilizadorExiste(const list<User*>& lista, int id) const
-{
-    for (list<User*>::const_iterator it = lista.begin(); it != lista.end(); ++it)
-    {
-        if ((*it)->GetId() == id)
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-bool Fabrica::idMotorExiste(const list<Motor*>& lista, int id) const
-{
-    for (list<Motor*>::const_iterator it = lista.begin(); it != lista.end(); ++it)
-    {
-        if ((*it)->GetId() == id)
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-bool Fabrica::idSensorExiste(const list<Sensor*>& lista, int id) const
-{
-    for (list<Sensor*>::const_iterator it = lista.begin(); it != lista.end(); ++it)
-    {
-        if ((*it)->GetId() == id)
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-Motor* Fabrica::procurarMotor(int id) const
-{
-    for (list<Motor*>::const_iterator it = motores.begin(); it != motores.end(); ++it)
-    {
-        if ((*it)->GetId() == id)
-        {
-            return *it;
-        }
-    }
-
-    return NULL;
-}
-
-void Fabrica::apagarUtilizadores(list<User*>& lista)
-{
-    for (list<User*>::iterator it = lista.begin(); it != lista.end(); ++it)
-    {
-        delete *it;
-        *it = NULL;
-    }
-
-    lista.clear();
-}
-
-void Fabrica::apagarMotores(list<Motor*>& lista)
-{
-    for (list<Motor*>::iterator it = lista.begin(); it != lista.end(); ++it)
-    {
-        delete *it;
-        *it = NULL;
-    }
-
-    lista.clear();
-}
-
-void Fabrica::apagarSensores(list<Sensor*>& lista)
-{
-    for (list<Sensor*>::iterator it = lista.begin(); it != lista.end(); ++it)
-    {
-        delete *it;
-        *it = NULL;
-    }
-
-    lista.clear();
-}
-
-void Fabrica::moverUtilizadores(list<User*>& origem)
-{
-    for (list<User*>::iterator it = origem.begin(); it != origem.end(); ++it)
-    {
-        utilizadores.push_back(*it);
-    }
-
-    origem.clear();
-}
-
-void Fabrica::moverMotores(list<Motor*>& origem)
-{
-    for (list<Motor*>::iterator it = origem.begin(); it != origem.end(); ++it)
-    {
-        motores.push_back(*it);
-    }
-
-    origem.clear();
-}
-
-void Fabrica::moverSensores(list<Sensor*>& origem)
-{
-    for (list<Sensor*>::iterator it = origem.begin(); it != origem.end(); ++it)
-    {
-        sensores.push_back(*it);
-    }
-
-    origem.clear();
-}
-
-void Fabrica::restaurarDefinicoes(int vizinhanca, const DefinicoesTipoMotor& comb,
-                                  const DefinicoesTipoMotor& elet, const DefinicoesTipoMotor& ind)
-{
-    vizinhancaAviso = vizinhanca;
-    defCombustao    = comb;
-    defEletrico     = elet;
-    defInducao      = ind;
-}
-
-bool Fabrica::lerLinhas(const string& ficheiro, list<string>& linhas) const
-{
-    ifstream entrada(ficheiro.c_str());
-    if (!entrada.is_open())
-    {
-        return false;
-    }
-
-    string linha;
-    while (getline(entrada, linha))
-    {
-        linha = limparLinha(linha);
-        if (!linha.empty())
-        {
-            linhas.push_back(linha);
-        }
-    }
-
-    entrada.close();
-    return true;
-}
-
-string Fabrica::limparLinha(const string& linha) const
-{
-    size_t inicio = 0;
-    size_t fim = linha.size();
-
-    while (inicio < fim)
-    {
-        char c = linha[inicio];
-        if (c != ' ' && c != '\t' && c != '\r')
-        {
-            break;
-        }
-        inicio++;
-    }
-
-    while (fim > inicio)
-    {
-        char c = linha[fim - 1];
-        if (c != ' ' && c != '\t' && c != '\r')
-        {
-            break;
-        }
-        fim--;
-    }
-
-    return linha.substr(inicio, fim - inicio);
-}
-
-/** @brief Devolve o nome da tag de abertura (ex: "<MOTOR>" -> "MOTOR"). Vazio se nao for tag. */
-string Fabrica::tagAbertura(const string& linha) const
-{
-    if (linha.empty() || linha[0] != '<' || linha.size() < 3)
-    {
-        return "";
-    }
-
-    if (linha[1] == '/' || linha[1] == '?')
-    {
-        return "";
-    }
-
-    size_t fim = linha.find('>');
-    if (fim == string::npos)
-    {
-        return "";
-    }
-
-    return linha.substr(1, fim - 1);
-}
-
-/** @brief Verifica se a linha e a tag de fecho da tag indicada. */
-bool Fabrica::eTagFecho(const string& linha, const string& tag) const
-{
-    string fecho = "</" + tag + ">";
-    return linha == fecho;
-}
-
-/** @brief Extrai o texto entre <tag> e </tag> numa so linha. */
-string Fabrica::valorEntreTag(const string& linha, const string& tag) const
-{
-    string abre  = "<"  + tag + ">";
-    string fecha = "</" + tag + ">";
-
-    size_t posA = linha.find(abre);
-    if (posA == string::npos)
-    {
-        return "";
-    }
-
-    size_t inicio = posA + abre.size();
-    size_t posF   = linha.find(fecha, inicio);
-    if (posF == string::npos)
-    {
-        return "";
-    }
-
-    return linha.substr(inicio, posF - inicio);
-}
-
-/** @brief Le um inteiro da primeira linha do bloco que contenha <tag>N</tag>. */
-bool Fabrica::lerInteiroDaTag(const list<string>& bloco, const string& tag, int& dest) const
-{
-    for (list<string>::const_iterator it = bloco.begin(); it != bloco.end(); ++it)
-    {
-        string val = valorEntreTag(*it, tag);
-        if (!val.empty())
-        {
-            stringstream ss(val);
-            int v = 0;
-            if (ss >> v)
-            {
-                dest = v;
-                return true;
-            }
-        }
-    }
-
-    return false;
-}
-
-/** @brief Le um double da primeira linha do bloco que contenha <tag>N</tag>. */
-bool Fabrica::lerRealDaTag(const list<string>& bloco, const string& tag, double& dest) const
-{
-    for (list<string>::const_iterator it = bloco.begin(); it != bloco.end(); ++it)
-    {
-        string val = valorEntreTag(*it, tag);
-        if (!val.empty())
-        {
-            stringstream ss(val);
-            double v = 0.0;
-            if (ss >> v)
-            {
-                dest = v;
-                return true;
-            }
-        }
-    }
-
-    return false;
-}
-
-/** @brief Le o texto da primeira linha do bloco que contenha <tag>texto</tag>. */
-string Fabrica::lerTextoDaTag(const list<string>& bloco, const string& tag) const
-{
-    for (list<string>::const_iterator it = bloco.begin(); it != bloco.end(); ++it)
-    {
-        string val = valorEntreTag(*it, tag);
-        if (!val.empty())
-        {
-            return val;
-        }
-    }
-
-    return "";
-}
-
-/** @brief Parse "a,b" ou "a, b" para dois doubles. */
-bool Fabrica::lerPar(const string& texto, double& a, double& b) const
-{
-    size_t virgula = texto.find(',');
-    if (virgula == string::npos)
-    {
-        return false;
-    }
-
-    string sa = texto.substr(0, virgula);
-    string sb = texto.substr(virgula + 1);
-
-    stringstream ssa(sa), ssb(sb);
-    return (ssa >> a) && (ssb >> b);
-}
-
-/** @brief Le <tag>min,max</tag> de um bloco e preenche o intervalo. */
-bool Fabrica::lerIntervaloBloco(const list<string>& bloco, const string& tag,
-                                IntervaloTemperatura& intervalo) const
-{
-    string texto = lerTextoDaTag(bloco, tag);
-    if (texto.empty())
-    {
-        return false;
-    }
-
-    double a = 0.0, b = 0.0;
-    if (!lerPar(texto, a, b))
-    {
-        return false;
-    }
-
-    if (a > b)
-    {
-        return false;
-    }
-
-    intervalo.minimo = a;
-    intervalo.maximo = b;
-    return true;
-}
-
-/** @brief Le <POSICAO>x,y</POSICAO> de um bloco. */
-bool Fabrica::lerPosicao(const list<string>& bloco, int& posX, int& posY) const
-{
-    string texto = lerTextoDaTag(bloco, "POSICAO");
-    if (texto.empty())
-    {
-        return false;
-    }
-
-    double a = 0.0, b = 0.0;
-    if (!lerPar(texto, a, b))
-    {
-        return false;
-    }
-
-    posX = (int)a;
-    posY = (int)b;
-    return posX >= 0 && posY >= 0;
+    return desligados;
 }
 
 /**
- * @brief Extrai o PRIMEIRO bloco <tag>...</tag> da lista de linhas.
- * O conteudo (linhas internas, sem as tags de abertura/fecho) fica em bloco.
+ * @brief Em caso de aviso de baixa luminosidade, gera o ficheiro de aviso de regresso a casa.
+ * @param fich_video Nome do ficheiro de vídeo/aviso a gerar.
+ * @return Número de sensores de luz em estado de aviso.
  */
-bool Fabrica::extrairBloco(const list<string>& linhas, const string& tag,
-                           list<string>& bloco) const
-{
-    string abre  = "<"  + tag + ">";
-    string fecha = "</" + tag + ">";
-    bool dentro  = false;
-
-    for (list<string>::const_iterator it = linhas.begin(); it != linhas.end(); ++it)
-    {
-        const string& l = *it;
-
-        if (!dentro)
-        {
-            if (l == abre)
-            {
-                dentro = true;
-            }
-            continue;
+int Fabrica::Aviso_Luz(string fich_video) {
+    int avisos = 0;
+    for (list<Sensor*>::iterator it = sensores.begin(); it != sensores.end(); ++it) {
+        if ((*it)->GetTipo() == "LUZ" && (*it)->EmAviso()) {
+            avisos++;
         }
-
-        if (l == fecha)
-        {
-            return true;
-        }
-
-        bloco.push_back(l);
     }
-
-    return false;
+    if (avisos > 0) {
+        ofstream f(fich_video.c_str());
+        if (f.is_open()) {
+            f << "BAIXA LUMINOSIDADE - BOM REGRESSO A CASA!\n";
+            f.close();
+        }
+        ExecutarVideo("videos/aviso_luz.mp4");
+        cout << "[AVISO GESTOR] Luz baixa! Video invocado (" << fich_video << ").\n";
+    }
+    return avisos;
 }
 
 /**
- * @brief Extrai TODOS os blocos <tag>...</tag> directos (nao aninhados) da lista.
+ * @brief Em caso de alerta de míssil, guarda o estado da fábrica, pára todos os motores e gera o aviso de abrigo.
+ * @param fvideo Nome do ficheiro de vídeo/aviso de abrigos.
+ * @param festado Nome do ficheiro de texto onde é guardado o estado atual da fábrica.
  */
-bool Fabrica::extrairTodosOsBlocos(const list<string>& linhas, const string& tag,
-                                   list< list<string> >& blocos) const
-{
-    string abre  = "<"  + tag + ">";
-    string fecha = "</" + tag + ">";
-    bool dentro  = false;
-    list<string> atual;
-
-    for (list<string>::const_iterator it = linhas.begin(); it != linhas.end(); ++it)
-    {
-        const string& l = *it;
-
-        if (!dentro)
-        {
-            if (l == abre)
-            {
-                dentro = true;
-                atual.clear();
-            }
-            continue;
-        }
-
-        if (l == fecha)
-        {
-            blocos.push_back(atual);
-            dentro = false;
-            continue;
-        }
-
-        atual.push_back(l);
-    }
-
-    return !blocos.empty();
-}
-
-bool Fabrica::lerTipoMotorBloco(const list<string>& bloco, DefinicoesTipoMotor& def) const
-{
-    if (!lerIntervaloBloco(bloco, "VERDE",    def.verde))    { return false; }
-    if (!lerIntervaloBloco(bloco, "AMARELO",  def.amarelo))  { return false; }
-    if (!lerIntervaloBloco(bloco, "VERMELHO", def.vermelho)) { return false; }
-    lerRealDaTag(bloco, "PROB_AVARIA", def.probAvaria);
-    def.probAvaria = def.probAvaria / 100.0; // o XML guarda percentagem; o resto do codigo usa fracao [0, 1]
-    return true;
-}
-
-bool Fabrica::lerDefinicoes(const list<string>& bloco,
-                            int& novoX, int& novoY,
-                            int& novaAbertura, int& novoEncerramento,
-                            int& novaVizinhanca, string& novoNome,
-                            DefinicoesTipoMotor& combDef,
-                            DefinicoesTipoMotor& eletDef,
-                            DefinicoesTipoMotor& indDef) const
-{
-    novoNome = lerTextoDaTag(bloco, "NOME_EMPRESA");
-
-    if (!lerInteiroDaTag(bloco, "HORA_INICIO", novaAbertura))  { return false; }
-    if (!lerInteiroDaTag(bloco, "HORA_FECHO",  novoEncerramento)) { return false; }
-    if (novaAbertura >= novoEncerramento)                       { return false; }
-
-    lerInteiroDaTag(bloco, "VIZINHANCA_AVISO", novaVizinhanca);
-
-    string dimTexto = lerTextoDaTag(bloco, "DIMENSAO_FABRICA");
-    if (dimTexto.empty()) { return false; }
-    double dx = 0.0, dy = 0.0;
-    if (!lerPar(dimTexto, dx, dy)) { return false; }
-    novoX = (int)dx;
-    novoY = (int)dy;
-    if (novoX <= 0 || novoY <= 0) { return false; }
-
-    list<string> bComb, bElet, bInd;
-    if (extrairBloco(bloco, "MCOMBUSTAO", bComb)) { lerTipoMotorBloco(bComb, combDef); }
-    if (extrairBloco(bloco, "MELETRICO",  bElet)) { lerTipoMotorBloco(bElet, eletDef); }
-    if (extrairBloco(bloco, "MINDUCAO",   bInd))  { lerTipoMotorBloco(bInd,  indDef); }
-
-    return true;
-}
-
-Motor* Fabrica::criarMotorDoBloco(const list<string>& bloco, const string& tipo,
-                                  const DefinicoesTipoMotor& def) const
-{
-    int    id      = 0;
-    double consumo = 0.0;
-    int    posX    = 0;
-    int    posY    = 0;
-
-    string marca = lerTextoDaTag(bloco, "MARCA");
-    if (!lerInteiroDaTag(bloco, "ID", id) || marca.empty()) { return NULL; }
-    if (!lerRealDaTag(bloco, "CONSUMO_HORA", consumo))       { return NULL; }
-    if (!lerPosicao(bloco, posX, posY))                      { return NULL; }
-    if (id <= 0 || consumo < 0.0)                            { return NULL; }
-
-    if (tipo == "MCOMBUSTAO")
-    {
-        return new MotorCombustao(id, marca, consumo, def.probAvaria,
-                                  posX, posY, def.verde, def.amarelo, def.vermelho);
-    }
-    if (tipo == "MELETRICO")
-    {
-        return new MotorEletrico(id, marca, consumo, def.probAvaria,
-                                 posX, posY, def.verde, def.amarelo, def.vermelho);
-    }
-    if (tipo == "MINDUCAO")
-    {
-        return new MotorInducao(id, marca, consumo, def.probAvaria,
-                                posX, posY, def.verde, def.amarelo, def.vermelho);
-    }
-
-    return NULL;
-}
-
-Sensor* Fabrica::criarSensorDoBloco(const list<string>& bloco, const string& tipo) const
-{
-    int    id    = 0;
-    double prob  = 0.0;
-    double valor = 0.0;
-    int    posX  = 0;
-    int    posY  = 0;
-
-    string marca = lerTextoDaTag(bloco, "MARCA");
-    if (!lerInteiroDaTag(bloco, "ID", id) || marca.empty()) { return NULL; }
-    lerRealDaTag(bloco, "PROB_AVARIA", prob);
-    prob = prob / 100.0; // o XML guarda percentagem; o resto do codigo usa fracao [0, 1]
-    lerRealDaTag(bloco, "VALOR_ATUAL", valor);
-    if (!lerPosicao(bloco, posX, posY))                     { return NULL; }
-
-    double limiar = 0.0;
-    lerRealDaTag(bloco, "VALOR_AVISO", limiar);
-
-    // PROB_1: probabilidade (em %) por hora de o evento ocorrer. Distinta de PROB_AVARIA.
-    // Se faltar no XML assume-se 1% por hora.
-    double probEvento = 1.0;
-    lerRealDaTag(bloco, "PROB_1", probEvento);
-    probEvento = probEvento / 100.0;
-
-    if (tipo == "SHUMIDADE")
-    {
-        int raio = vizinhancaAviso > 0 ? vizinhancaAviso : 5;
-        return new SensorHumidade(id, marca, valor, prob, posX, posY, limiar, raio);
-    }
-    if (tipo == "SLUZ")
-    {
-        return new SensorLuz(id, marca, valor, prob, posX, posY, limiar);
-    }
-    if (tipo == "SFUMO")
-    {
-        return new SensorFumo(id, marca, valor, prob, posX, posY, limiar, probEvento);
-    }
-    if (tipo == "SMISSEL" || tipo == "SMISSIL")
-    {
-        return new SensorMissel(id, marca, valor, prob, posX, posY, probEvento);
-    }
-    if (tipo == "STEMPERATURA")
-    {
-        return new SensorTemperatura(id, marca, valor, prob, posX, posY, limiar);
-    }
-    if (tipo == "SFOGO")
-    {
-        return new SensorFogo(id, marca, valor, prob, posX, posY, limiar, probEvento);
-    }
-
-    return NULL;
-}
-
-bool Fabrica::lerMotores(const list<string>& blocoMotores,
-                         int limX, int limY, list<Motor*>& dest) const
-{
-    static const char* tipos[] = { "MCOMBUSTAO", "MELETRICO", "MINDUCAO", NULL };
-
-    for (int t = 0; tipos[t] != NULL; ++t)
-    {
-        string tipo = tipos[t];
-        list< list<string> > blocos;
-        extrairTodosOsBlocos(blocoMotores, tipo, blocos);
-
-        const DefinicoesTipoMotor* def = &defCombustao;
-        if (tipo == "MELETRICO") { def = &defEletrico; }
-        if (tipo == "MINDUCAO")  { def = &defInducao; }
-
-        for (list< list<string> >::iterator it = blocos.begin(); it != blocos.end(); ++it)
-        {
-            Motor* m = criarMotorDoBloco(*it, tipo, *def);
-            if (m == NULL)                                                      { return false; }
-            if (!posicaoValida(m->GetX(), m->GetY(), limX, limY))               { delete m; return false; }
-            if (idMotorExiste(dest, m->GetId()) || idMotorExiste(motores, m->GetId())) { delete m; return false; }
-            dest.push_back(m);
-        }
-    }
-
-    return true;
-}
-
-bool Fabrica::lerSensores(const list<string>& blocoSensores,
-                          int limX, int limY, list<Sensor*>& dest) const
-{
-    static const char* tipos[] = {
-        "SHUMIDADE", "SLUZ", "SFUMO", "SMISSEL", "SMISSIL",
-        "STEMPERATURA", "SFOGO", NULL
-    };
-
-    for (int t = 0; tipos[t] != NULL; ++t)
-    {
-        string tipo = tipos[t];
-        list< list<string> > blocos;
-        extrairTodosOsBlocos(blocoSensores, tipo, blocos);
-
-        for (list< list<string> >::iterator it = blocos.begin(); it != blocos.end(); ++it)
-        {
-            Sensor* s = criarSensorDoBloco(*it, tipo);
-            if (s == NULL)                                                          { return false; }
-            if (!posicaoValida(s->GetX(), s->GetY(), limX, limY))                   { delete s; return false; }
-            if (idSensorExiste(dest, s->GetId()) || idSensorExiste(sensores, s->GetId()))
-            {
-                cerr << "[AVISO] Sensor com ID repetido (" << s->GetId() << ") ignorado." << endl;
-                delete s;
-                continue;
-            }
-            dest.push_back(s);
-        }
-    }
-
-    return true;
-}
-
-string Fabrica::textoEstado(ESTADO_MOTOR estado) const
-{
-    if (estado == STOP)
-    {
-        return "STOP";
-    }
-
-    if (estado == START)
-    {
-        return "START";
-    }
-
-    if (estado == RUN)
-    {
-        return "RUN";
-    }
-
-    return "AVARIADO";
-}
-
-string Fabrica::textoClasse(CLASSE_TEMPERATURA classe) const
-{
-    if (classe == VERDE)
-    {
-        return "VERDE";
-    }
-
-    if (classe == AMARELO)
-    {
-        return "AMARELO";
-    }
-
-    return "VERMELHO";
-}
-
-void Fabrica::acumularAvarias(map<string, int>& totais) const
-{
-    for (list<Motor*>::const_iterator it = motores.begin(); it != motores.end(); ++it)
-    {
-        totais[(*it)->GetMarca()] = totais[(*it)->GetMarca()] + (*it)->GetTotalAvarias();
-    }
-
-    for (list<Sensor*>::const_iterator it = sensores.begin(); it != sensores.end(); ++it)
-    {
-        totais[(*it)->GetMarca()] = totais[(*it)->GetMarca()] + (*it)->GetTotalAvarias();
-    }
-}
-
-void Fabrica::inserirMarca(list<MarcaAvarias>& ranking, const string& marca, int avarias) const
-{
-    MarcaAvarias entrada;
-    entrada.marca = marca;
-    entrada.avarias = avarias;
-
-    for (list<MarcaAvarias>::iterator it = ranking.begin(); it != ranking.end(); ++it)
-    {
-        if (entrada.avarias > it->avarias)
-        {
-            ranking.insert(it, entrada);
-            return;
-        }
-
-        if (entrada.avarias == it->avarias && entrada.marca < it->marca)
-        {
-            ranking.insert(it, entrada);
-            return;
-        }
-    }
-
-    ranking.push_back(entrada);
-}
-
-void Fabrica::Arrancar(int id_motor)
-{
-    if (!podeRun())
-    {
-        return;
-    }
-
-    Motor* motor = procurarMotor(id_motor);
-    if (motor == NULL)
-    {
-        return;
-    }
-
-    motor->START();
-    cout << "Motor " << id_motor << " em START." << endl;
-}
-
-void Fabrica::PassoSimulacao(int minutoAtual, int horaAtual, int minutosPasso, double grausPasso, double arrefPasso)
-{
-    bool algumEmRun = false;
-    for (list<Motor*>::iterator it = motores.begin(); it != motores.end(); ++it)
-    {
-        if ((*it)->GetEstado() == RUN)
-        {
-            algumEmRun = true;
+void Fabrica::Aviso_Missel(string fvideo, string festado) {
+    bool alertaMissel = false;
+    for (list<Sensor*>::iterator it = sensores.begin(); it != sensores.end(); ++it) {
+        if ((*it)->GetTipo() == "MISSEL" && (*it)->EmAviso()) {
+            alertaMissel = true;
             break;
         }
     }
 
-    double fracaoHora = minutosPasso / 60.0;
-
-    for (list<Motor*>::iterator it = motores.begin(); it != motores.end(); ++it)
-    {
-        Motor* m = *it;
-
-        if (m->GetEstado() == START)
-        {
-            if (horaAtual >= horaAbertura && horaAtual < horaEncerramento)
-            {
-                m->RUN();
-            }
-            else
-            {
-                cout << "[AVISO] Motor " << m->GetId()
-                     << " (" << m->GetMarca() << ") aguarda abertura da fabrica (hora actual: "
-                     << horaAtual << "h)." << endl;
-            }
+    if (alertaMissel) {
+        ofstream fEst(festado.c_str());
+        if (fEst.is_open()) {
+            Listar(fEst);
+            fEst.close();
         }
-
-        if (m->GetEstado() == RUN)
-        {
-            m->Aquecer(grausPasso);
-            m->RegistarTrabalho(minutosPasso);
-            m->ESTOU_QUENTE();
-
-            double sorteio = (rand() % 10000) / 10000.0;
-            if (sorteio < m->GetProbabilidadeAvaria() * fracaoHora)
-            {
-                if (m->Avariar())
-                {
-                    cout << "[AVISO GESTOR] Motor " << m->GetId()
-                         << " (" << m->GetMarca() << ") AVARIOU." << endl;
-                }
-            }
+        for (list<Motor*>::iterator mIt = motores.begin(); mIt != motores.end(); ++mIt) {
+            (*mIt)->STOP();
         }
-        else if (m->GetEstado() == STOP)
-        {
-            m->Arrefecer(arrefPasso);
+        fabricaAtiva = false;
+        ofstream fVid(fvideo.c_str());
+        if (fVid.is_open()) {
+            fVid << "ALERTA DE MISSEL - DIRIJA-SE IMEDIATAMENTE AOS ABRIGOS!\n";
+            fVid.close();
         }
+        ExecutarVideo("videos/aviso_missel.mp4");
+        cout << "[ALERTA CRITICO] Missel detetado! Fabrica encerrada. Video invocado e estado guardado em: " << festado << "\n";
     }
-
-    for (list<Sensor*>::iterator it = sensores.begin(); it != sensores.end(); ++it)
-    {
-        (*it)->Actualizar(algumEmRun, horaAtual, horaAbertura, horaEncerramento, fracaoHora);
-
-        double sorteio = (rand() % 10000) / 10000.0;
-        if (sorteio < (*it)->GetProbabilidadeAvaria() * fracaoHora && !(*it)->EstaAvariado())
-        {
-            (*it)->RegistarAvaria();
-            cout << "[AVISO] Sensor " << (*it)->GetId()
-                 << " (" << (*it)->GetTipo() << ") avariou." << endl;
-        }
-    }
-
-    (void)minutoAtual;
-}
-
-void Fabrica::VerificarAvisosSensores(list<Motor*>& desligados)
-{
-    for (list<Sensor*>::iterator it = sensores.begin(); it != sensores.end(); ++it)
-    {
-        Sensor* s = *it;
-        if (!s->Disparou())
-        {
-            continue;
-        }
-
-        string tipo = s->GetTipo();
-
-        if (tipo == "HUMIDADE")
-        {
-            list<Motor*> lm;
-            Aviso_Humidade(lm);
-            for (list<Motor*>::iterator im = lm.begin(); im != lm.end(); ++im)
-            {
-                desligados.push_back(*im);
-            }
-        }
-        else if (tipo == "FUMO")
-        {
-            list<Motor*> lm;
-            Aviso_Fumo(lm, VIDEO_FUMO);
-            for (list<Motor*>::iterator im = lm.begin(); im != lm.end(); ++im)
-            {
-                desligados.push_back(*im);
-            }
-        }
-        else if (tipo == "LUZ")
-        {
-            Aviso_Luz(VIDEO_LUZ);
-        }
-        else if (tipo == "MISSEL")
-        {
-            Aviso_Missel(VIDEO_MISSEL, "Estado.txt");
-        }
-        else if (tipo == "TEMPERATURA")
-        {
-            cout << "[AVISO SENSOR] Temperatura critica detetada pelo sensor " << s->GetId() << "." << endl;
-            for (list<Motor*>::iterator im = motores.begin(); im != motores.end(); ++im)
-            {
-                Motor* m = *im;
-                if (m->GetEstado() != AVARIADO && m->GetEstado() != ::STOP)
-                {
-                    m->STOP();
-                    desligados.push_back(m);
-                }
-            }
-        }
-        else if (tipo == "FOGO")
-        {
-            cout << "[ALERTA CRITICO] Fogo detetado pelo sensor " << s->GetId() << "! A parar todos os motores!" << endl;
-            for (list<Motor*>::iterator im = motores.begin(); im != motores.end(); ++im)
-            {
-                Motor* m = *im;
-                if (m->GetEstado() != AVARIADO)
-                {
-                    m->STOP();
-                    desligados.push_back(m);
-                }
-            }
-            for (list<Sensor*>::iterator is = sensores.begin(); is != sensores.end(); ++is)
-            {
-                (*is)->Repor();
-            }
-        }
-    }
-}
-
-void Fabrica::ReiniciarConsumoDia()
-{
-    for (list<Motor*>::iterator it = motores.begin(); it != motores.end(); ++it)
-    {
-        (*it)->ReiniciarConsumoDia();
-    }
-}
-
-void Fabrica::SetUtilizadorAtual(User* novo)
-{
-    if (novo == NULL)
-    {
-        return;
-    }
-
-    bool estaNaLista = false;
-    for (list<User*>::iterator it = utilizadores.begin(); it != utilizadores.end(); ++it)
-    {
-        if (*it == utilizadorAtual)
-        {
-            estaNaLista = true;
-            break;
-        }
-    }
-
-    if (!estaNaLista && utilizadorAtual != NULL)
-    {
-        delete utilizadorAtual;
-    }
-
-    utilizadorAtual = novo;
-}
-
-void Fabrica::inserirPorTrabalho(list<Motor*>& destino, Motor* motor) const
-{
-    for (list<Motor*>::iterator it = destino.begin(); it != destino.end(); ++it)
-    {
-        if (motor->GetTempoTrabalho() > (*it)->GetTempoTrabalho())
-        {
-            destino.insert(it, motor);
-            return;
-        }
-
-        if (motor->GetTempoTrabalho() == (*it)->GetTempoTrabalho() && motor->GetId() < (*it)->GetId())
-        {
-            destino.insert(it, motor);
-            return;
-        }
-    }
-
-    destino.push_back(motor);
-}
-
-bool Fabrica::eFormatoAtributos(const list<string>& linhas) const
-{
-    for (list<string>::const_iterator it = linhas.begin(); it != linhas.end(); ++it)
-    {
-        if (*it == "<FABRICA>")
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-bool Fabrica::atributoTexto(const string& linha, const string& nome, string& valor) const
-{
-    string chave = nome + "=\"";
-    size_t pos = linha.find(chave);
-
-    // O nome tem de comecar depois de um espaco, para "x" nao coincidir com o fim de outro atributo.
-    while (pos != string::npos)
-    {
-        if (pos > 0 && (linha[pos - 1] == ' ' || linha[pos - 1] == '\t'))
-        {
-            break;
-        }
-        pos = linha.find(chave, pos + 1);
-    }
-
-    if (pos == string::npos)
-    {
-        return false;
-    }
-
-    size_t inicio = pos + chave.size();
-    size_t fim = linha.find('"', inicio);
-    if (fim == string::npos)
-    {
-        return false;
-    }
-
-    valor = linha.substr(inicio, fim - inicio);
-    return true;
-}
-
-bool Fabrica::atributoInteiro(const string& linha, const string& nome, int& valor) const
-{
-    string texto;
-    if (!atributoTexto(linha, nome, texto))
-    {
-        return false;
-    }
-
-    stringstream ss(texto);
-    int v = 0;
-    if (!(ss >> v))
-    {
-        return false;
-    }
-
-    valor = v;
-    return true;
-}
-
-bool Fabrica::atributoReal(const string& linha, const string& nome, double& valor) const
-{
-    string texto;
-    if (!atributoTexto(linha, nome, texto))
-    {
-        return false;
-    }
-
-    stringstream ss(texto);
-    double v = 0.0;
-    if (!(ss >> v))
-    {
-        return false;
-    }
-
-    valor = v;
-    return true;
-}
-
-Motor* Fabrica::criarMotorDeAtributos(const string& linha, DefinicoesTipoMotor& def) const
-{
-    string tipo;
-    string marca;
-    int    id      = 0;
-    int    posX    = 0;
-    int    posY    = 0;
-    double consumo = 0.0;
-    double prob    = 0.0;
-    double aviso   = 0.0;
-    double paragem = 0.0;
-
-    if (!atributoTexto(linha, "tipo", tipo) || !atributoTexto(linha, "marca", marca) || marca.empty())
-    {
-        return NULL;
-    }
-
-    if (!atributoInteiro(linha, "id", id) ||
-        !atributoInteiro(linha, "x", posX) ||
-        !atributoInteiro(linha, "y", posY))
-    {
-        return NULL;
-    }
-
-    if (!atributoReal(linha, "consumo", consumo) ||
-        !atributoReal(linha, "tempAviso", aviso) ||
-        !atributoReal(linha, "tempParagem", paragem))
-    {
-        return NULL;
-    }
-
-    atributoReal(linha, "probAvaria", prob);
-    prob = prob / 100.0; // o XML guarda percentagem; os construtores recebem fracao [0, 1]
-
-    if (id <= 0 || consumo < 0.0 || aviso >= paragem)
-    {
-        return NULL;
-    }
-
-    // Este formato nao traz intervalos: derivam-se de tempAviso e tempParagem.
-    def.verde.minimo    = 0.0;
-    def.verde.maximo    = aviso > 1.0 ? aviso - 1.0 : 0.0;
-    def.amarelo.minimo  = aviso;
-    def.amarelo.maximo  = paragem - 1.0;
-    def.vermelho.minimo = paragem;
-    def.vermelho.maximo = paragem + (paragem - aviso);
-    def.probAvaria      = prob;
-
-    if (tipo == "COMBUSTAO" || tipo == "MCOMBUSTAO")
-    {
-        return new MotorCombustao(id, marca, consumo, prob, posX, posY,
-                                  def.verde, def.amarelo, def.vermelho);
-    }
-    if (tipo == "ELETRICO" || tipo == "MELETRICO")
-    {
-        return new MotorEletrico(id, marca, consumo, prob, posX, posY,
-                                 def.verde, def.amarelo, def.vermelho);
-    }
-    if (tipo == "INDUCAO" || tipo == "MINDUCAO")
-    {
-        return new MotorInducao(id, marca, consumo, prob, posX, posY,
-                                def.verde, def.amarelo, def.vermelho);
-    }
-
-    return NULL;
-}
-
-Sensor* Fabrica::criarSensorDeAtributos(const string& linha) const
-{
-    string tipo;
-    string marca;
-    int    id     = 0;
-    int    posX   = 0;
-    int    posY   = 0;
-    int    raio   = 5;
-    double valor  = 0.0;
-    double limiar = 0.0;
-    double prob   = 0.0;
-
-    if (!atributoTexto(linha, "tipo", tipo) || !atributoTexto(linha, "marca", marca) || marca.empty())
-    {
-        return NULL;
-    }
-
-    if (!atributoInteiro(linha, "id", id) ||
-        !atributoInteiro(linha, "x", posX) ||
-        !atributoInteiro(linha, "y", posY))
-    {
-        return NULL;
-    }
-
-    atributoReal(linha, "valor", valor);
-    atributoReal(linha, "limiar", limiar);
-    atributoReal(linha, "probAvaria", prob);
-    prob = prob / 100.0; // o XML guarda percentagem; os construtores recebem fracao [0, 1]
-    atributoInteiro(linha, "raio", raio);
-
-    if (id <= 0)
-    {
-        return NULL;
-    }
-
-    if (tipo == "LUZ" || tipo == "SLUZ")
-    {
-        return new SensorLuz(id, marca, valor, prob, posX, posY, limiar);
-    }
-    if (tipo == "HUMIDADE" || tipo == "SHUMIDADE")
-    {
-        return new SensorHumidade(id, marca, valor, prob, posX, posY, limiar, raio);
-    }
-    if (tipo == "FUMO" || tipo == "SFUMO")
-    {
-        return new SensorFumo(id, marca, valor, prob, posX, posY, limiar);
-    }
-    if (tipo == "MISSEL" || tipo == "SMISSEL" || tipo == "SMISSIL")
-    {
-        return new SensorMissel(id, marca, valor, prob, posX, posY);
-    }
-    if (tipo == "TEMPERATURA" || tipo == "STEMPERATURA")
-    {
-        return new SensorTemperatura(id, marca, valor, prob, posX, posY, limiar);
-    }
-    if (tipo == "FOGO" || tipo == "SFOGO")
-    {
-        return new SensorFogo(id, marca, valor, prob, posX, posY, limiar);
-    }
-
-    return NULL;
-}
-
-bool Fabrica::carregarFormatoAtributos(const list<string>& linhas)
-{
-    list<string> blocoDefinicoes;
-    if (!extrairBloco(linhas, "DEFINICOES", blocoDefinicoes))
-    {
-        return false;
-    }
-
-    int novaAbertura     = 0;
-    int novoEncerramento = 0;
-    int novaVizinhanca   = 0;
-
-    if (!lerInteiroDaTag(blocoDefinicoes, "HORA_INICIO", novaAbertura) ||
-        !lerInteiroDaTag(blocoDefinicoes, "HORA_FECHO", novoEncerramento))
-    {
-        return false;
-    }
-
-    if (!horaValida(novaAbertura) || novoEncerramento < 0 || novoEncerramento > 24 ||
-        novaAbertura >= novoEncerramento)
-    {
-        return false;
-    }
-
-    lerInteiroDaTag(blocoDefinicoes, "VIZINHANCA_AVISO", novaVizinhanca);
-
-    string dimTexto = lerTextoDaTag(blocoDefinicoes, "DIMENSAO");
-    if (dimTexto.empty())
-    {
-        dimTexto = lerTextoDaTag(blocoDefinicoes, "DIMENSAO_FABRICA");
-    }
-
-    double dx = 0.0;
-    double dy = 0.0;
-    if (!lerPar(dimTexto, dx, dy))
-    {
-        return false;
-    }
-
-    int novoX = (int)dx;
-    int novoY = (int)dy;
-    if (novoX <= 0 || novoY <= 0)
-    {
-        return false;
-    }
-
-    string novoNome = lerTextoDaTag(blocoDefinicoes, "NOME_EMPRESA");
-
-    // Tudo e criado em listas locais e so passa para a fabrica no fim.
-    list<Motor*>  novosMotores;
-    list<Sensor*> novosSensores;
-    DefinicoesTipoMotor novoComb = defCombustao;
-    DefinicoesTipoMotor novoElet = defEletrico;
-    DefinicoesTipoMotor novoInd  = defInducao;
-    bool temComb = false;
-    bool temElet = false;
-    bool temInd  = false;
-    bool ok      = true;
-
-    for (list<string>::const_iterator it = linhas.begin(); it != linhas.end() && ok; ++it)
-    {
-        const string& linha = *it;
-
-        if (linha.compare(0, 7, "<MOTOR ") == 0)
-        {
-            DefinicoesTipoMotor def;
-            Motor* m = criarMotorDeAtributos(linha, def);
-            if (m == NULL)
-            {
-                ok = false;
-                break;
-            }
-
-            if (!posicaoValida(m->GetX(), m->GetY(), novoX, novoY) ||
-                idMotorExiste(novosMotores, m->GetId()))
-            {
-                delete m;
-                ok = false;
-                break;
-            }
-
-            novosMotores.push_back(m);
-
-            string tipoMotor = m->GetTipo();
-            if (tipoMotor == "MCOMBUSTAO")      { novoComb = def; temComb = true; }
-            else if (tipoMotor == "MELETRICO")  { novoElet = def; temElet = true; }
-            else if (tipoMotor == "MINDUCAO")   { novoInd  = def; temInd  = true; }
-        }
-        else if (linha.compare(0, 8, "<SENSOR ") == 0)
-        {
-            Sensor* s = criarSensorDeAtributos(linha);
-            if (s == NULL)
-            {
-                ok = false;
-                break;
-            }
-
-            if (!posicaoValida(s->GetX(), s->GetY(), novoX, novoY))
-            {
-                delete s;
-                ok = false;
-                break;
-            }
-
-            if (idSensorExiste(novosSensores, s->GetId()))
-            {
-                cerr << "[AVISO] Sensor com ID repetido (" << s->GetId() << ") ignorado." << endl;
-                delete s;
-                continue;
-            }
-
-            novosSensores.push_back(s);
-        }
-    }
-
-    if (!ok)
-    {
-        apagarMotores(novosMotores);
-        apagarSensores(novosSensores);
-        return false;
-    }
-
-    campoX           = novoX;
-    campoY           = novoY;
-    horaAbertura     = novaAbertura;
-    horaEncerramento = novoEncerramento;
-    vizinhancaAviso  = novaVizinhanca;
-    nomeFabrica      = novoNome;
-
-    if (temComb) { defCombustao = novoComb; }
-    if (temElet) { defEletrico  = novoElet; }
-    if (temInd)  { defInducao   = novoInd; }
-
-    if (temComb)      { verde = novoComb.verde; amarelo = novoComb.amarelo; vermelho = novoComb.vermelho; }
-    else if (temElet) { verde = novoElet.verde; amarelo = novoElet.amarelo; vermelho = novoElet.vermelho; }
-    else if (temInd)  { verde = novoInd.verde;  amarelo = novoInd.amarelo;  vermelho = novoInd.vermelho; }
-
-    moverMotores(novosMotores);
-    moverSensores(novosSensores);
-    return true;
 }

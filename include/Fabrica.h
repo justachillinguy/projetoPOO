@@ -1,286 +1,175 @@
+/**
+ * @file Fabrica.h
+ * @brief Declaração da classe gestora Fabrica.
+ */
+
 #ifndef FABRICA_H
 #define FABRICA_H
 
-#include "Motor.h"
-#include "Sensor.h"
-#include "TiposMotor.h"
-#include "Tipos.h"
-#include "User.h"
-
 #include <iostream>
+#include <string>
 #include <list>
 #include <map>
-#include <string>
+#include "Tipos.h"
+#include "Dispositivos.h"
+#include "Motor.h"
+#include "Tipos_Motor.h"
+#include "Sensores.h"
+#include "Tipos_Sensores.h"
+#include "Users.h"
+#include "Tipos_Users.h"
 
 using namespace std;
 
 /**
- * @file Fabrica.h
- * @brief Gestao da fabrica: campo, dispositivos, acessos e configuracao XML.
- *
- * A fabrica e um campo de campoX por campoY. Cada motor e cada sensor
- * ocupa uma posicao (X, Y). Sao aceites coordenadas nao negativas,
- * dentro do campo (0..campoX e 0..campoY).
- *
- * O ficheiro XML pode ter dois formatos (detetados no Load):
- * - elementos aninhados (raiz DADOS, ex.: xml/gerado.xml);
- * - atributos por linha (raiz FABRICA, ex.: xml/fabrica.xml).
- *
- * Posse de memoria:
- * - A fabrica e dona de todos os ponteiros que guarda.
- * - O utilizador passado ao construtor passa a ser da fabrica.
- * - Add, quando devolve true, fica dona do ponteiro.
- * - Add, quando devolve false, nao fica dona: quem chamou apaga o ponteiro.
- * - Listar_Tipo e os rankings devolvem uma lista nova. Quem chamou
- *   apaga a lista com delete e nao apaga os motores que ela aponta.
- * - O destrutor liberta utilizadores, motores e sensores.
+ * @class Fabrica
+ * @brief Classe principal que gere os motores, sensores, utilizadores e a simulação da fábrica.
  */
+class Fabrica {
+private:
+    string nome;                        ///< Nome da empresa/fábrica
+    int horaAbertura;                   ///< Hora de abertura da fábrica (0-23)
+    int horaFecho;                      ///< Hora de encerramento da fábrica (0-23)
+    int vizinhancaAviso;                ///< Raio de vizinhança global para avisos
+    int dimensaoX;                      ///< Largura máxima da planta da fábrica
+    int dimensaoY;                      ///< Altura máxima da planta da fábrica
 
-class Fabrica
-{
-    private:
-        struct MarcaAvarias
-        {
-            string marca;
-            int avarias;
-        };
+    int horaSimulada;                   ///< Hora atual do relógio da simulação (0-23)
+    int minutoSimulado;                 ///< Minuto atual do relógio da simulação (0-59)
+    bool fabricaAtiva;                  ///< Indica se a fábrica está operacional (false em alerta de míssil)
 
-        struct DefinicoesTipoMotor
-        {
-            IntervaloTemperatura verde;
-            IntervaloTemperatura amarelo;
-            IntervaloTemperatura vermelho;
-            double probAvaria;
-        };
+    list<Motor*> motores;               ///< Lista de ponteiros para os motores da fábrica
+    list<Sensor*> sensores;             ///< Lista de ponteiros para os sensores da fábrica
+    list<User*> utilizadores;           ///< Lista de ponteiros para os utilizadores registados
+    User* userAtual;                    ///< Ponteiro para o utilizador atualmente autenticado
 
-        User* utilizadorAtual;
-        list<User*> utilizadores;
-        list<Motor*> motores;
-        list<Sensor*> sensores;
-        int campoX;
-        int campoY;
-        int horaAbertura;
-        int horaEncerramento;
-        int vizinhancaAviso;
-        string nomeFabrica;
-        IntervaloTemperatura verde;
-        IntervaloTemperatura amarelo;
-        IntervaloTemperatura vermelho;
-        DefinicoesTipoMotor defCombustao;
-        DefinicoesTipoMotor defEletrico;
-        DefinicoesTipoMotor defInducao;
+    map<string, string> defVerde;       ///< Intervalo térmico VERDE lido do XML por tipo de motor
+    map<string, string> defAmarelo;     ///< Intervalo térmico AMARELO lido do XML por tipo de motor
+    map<string, string> defVermelho;    ///< Intervalo térmico VERMELHO lido do XML por tipo de motor
+    map<string, string> defProbAvaria;  ///< Probabilidade de avaria lida do XML por tipo de motor
 
-        bool podeAdicionar() const;
-        bool podeRemover() const;
-        bool podeListar() const;
-        bool podeRun() const;
-        bool podeManutencao() const;
+    /** @brief Procura um motor pelo seu identificador único. */
+    Motor* ProcurarMotor(int id) const;
 
-        bool posicaoValida(int posX, int posY, int limiteX, int limiteY) const;
-        bool horaValida(int hora) const;
-        bool intervalosCoerentes(const IntervaloTemperatura& zonaVerde,
-                                 const IntervaloTemperatura& zonaAmarela,
-                                 const IntervaloTemperatura& zonaVermelha) const;
+    /** @brief Procura um sensor pelo seu identificador único. */
+    Sensor* ProcurarSensor(int id) const;
 
-        bool idUtilizadorExiste(const list<User*>& lista, int id) const;
-        bool idMotorExiste(const list<Motor*>& lista, int id) const;
-        bool idSensorExiste(const list<Sensor*>& lista, int id) const;
-        Motor* procurarMotor(int id) const;
+    /** @brief Calcula a distância euclidiana entre dois pontos da planta. */
+    double CalcularDistancia(int x1, int y1, int x2, int y2) const;
 
-        void apagarUtilizadores(list<User*>& lista);
-        void apagarMotores(list<Motor*>& lista);
-        void apagarSensores(list<Sensor*>& lista);
-        void moverUtilizadores(list<User*>& origem);
-        void moverMotores(list<Motor*>& origem);
-        void moverSensores(list<Sensor*>& origem);
-        /**
-        * @brief Repoe as definicoes alteradas por uma carga que falhou.
-        *
-        * So mexe nas definicoes. Nunca apaga utilizadores nem dispositivos da fabrica.
-        */
-        void restaurarDefinicoes(int vizinhanca, const DefinicoesTipoMotor& comb,
-                                 const DefinicoesTipoMotor& elet, const DefinicoesTipoMotor& ind);
+    /** @brief Extrai o conteúdo textual entre uma tag XML de abertura e fecho. */
+    string ExtrairTagXML(const string& texto, const string& tag) const;
 
-        bool lerLinhas(const string& ficheiro, list<string>& linhas) const;
-        string limparLinha(const string& linha) const;
-        string tagAbertura(const string& linha) const;
-        bool eTagFecho(const string& linha, const string& tag) const;
-        string valorEntreTag(const string& linha, const string& tag) const;
-        bool lerInteiroDaTag(const list<string>& bloco, const string& tag, int& dest) const;
-        bool lerRealDaTag(const list<string>& bloco, const string& tag, double& dest) const;
-        string lerTextoDaTag(const list<string>& bloco, const string& tag) const;
-        bool lerPar(const string& texto, double& a, double& b) const;
-        bool lerIntervaloBloco(const list<string>& bloco, const string& tag,
-                               IntervaloTemperatura& intervalo) const;
-        bool lerPosicao(const list<string>& bloco, int& posX, int& posY) const;
+    /** @brief Separa dois números decimais separados por vírgula. */
+    void ExtrairParDouble(const string& texto, double& primeiro, double& segundo) const;
 
-        bool extrairBloco(const list<string>& linhas, const string& tag,
-                          list<string>& bloco) const;
-        bool extrairTodosOsBlocos(const list<string>& linhas, const string& tag,
-                                  list< list<string> >& blocos) const;
+    /** @brief Separa dois números inteiros separados por vírgula. */
+    void ExtrairParInt(const string& texto, int& primeiro, int& segundo) const;
 
-        bool lerDefinicoes(const list<string>& bloco,
-                           int& novoX, int& novoY,
-                           int& novaAbertura, int& novoEncerramento,
-                           int& novaVizinhanca, string& novoNome,
-                           DefinicoesTipoMotor& combDef,
-                           DefinicoesTipoMotor& eletDef,
-                           DefinicoesTipoMotor& indDef) const;
-        bool lerTipoMotorBloco(const list<string>& bloco,
-                               DefinicoesTipoMotor& def) const;
+    /** @brief Converte percentagens do XML para frações entre 0.0 e 1.0. */
+    double NormalizarProbabilidade(double valor) const;
 
-        Motor*  criarMotorDoBloco(const list<string>& bloco, const string& tipo,
-                                  const DefinicoesTipoMotor& def) const;
-        Sensor* criarSensorDoBloco(const list<string>& bloco, const string& tipo) const;
-        bool lerMotores(const list<string>& blocoMotores,
-                        int limX, int limY, list<Motor*>& dest) const;
-        bool lerSensores(const list<string>& blocoSensores,
-                         int limX, int limY, list<Sensor*>& dest) const;
+    /** @brief Verifica se o relógio simulado está dentro do horário de funcionamento. */
+    bool EstaAberta() const;
 
-        /** @brief Indica se o ficheiro e do formato com atributos (raiz FABRICA). */
-        bool eFormatoAtributos(const list<string>& linhas) const;
+    /** @brief Atualiza as leituras dos sensores durante um passo de simulação. */
+    void AtualizarSensores();
 
-        /**
-        * @brief Carrega o formato com atributos (ex.: xml/fabrica.xml).
-        *
-        * Cada motor e sensor ocupa uma linha: <MOTOR id="100" x="0" .../>.
-        * A carga e atomica: se algo falhar, a fabrica fica inalterada e tudo
-        * o que foi criado e libertado.
-        */
-        bool carregarFormatoAtributos(const list<string>& linhas);
+    /** @brief Avalia probabilidades de avaria aleatória para todos os motores e sensores. */
+    void SimularAvarias();
 
-        /** @brief Le o valor de nome="valor" numa linha. Devolve false se nao existir. */
-        bool atributoTexto(const string& linha, const string& nome, string& valor) const;
-        /** @brief Como atributoTexto, convertendo para inteiro. */
-        bool atributoInteiro(const string& linha, const string& nome, int& valor) const;
-        /** @brief Como atributoTexto, convertendo para real. */
-        bool atributoReal(const string& linha, const string& nome, double& valor) const;
+    /** @brief Avança o relógio da simulação em 10 minutos e gere a mudança de dia. */
+    void AvancarRelogio(int minutos);
 
-        /**
-        * @brief Cria um motor a partir de uma linha <MOTOR .../>.
-        * @param def Recebe os intervalos de temperatura derivados de tempAviso e tempParagem.
-        * @return Motor novo ou NULL se a linha for invalida.
-        */
-        Motor* criarMotorDeAtributos(const string& linha, DefinicoesTipoMotor& def) const;
+public:
+    /**
+     * @brief Construtor da classe Fabrica.
+     * @param ut Utilizador inicial associado à sessão.
+     */
+    Fabrica(User *ut);
 
-        /** @brief Cria um sensor a partir de uma linha <SENSOR .../>. NULL se invalida. */
-        Sensor* criarSensorDeAtributos(const string& linha) const;
 
-        string textoEstado(ESTADO_MOTOR estado) const;
-        string textoClasse(CLASSE_TEMPERATURA classe) const;
+    bool ExisteMotor(int id) const;
 
-        void acumularAvarias(map<string, int>& totais) const;
-        void inserirMarca(list<MarcaAvarias>& ranking, const string& marca, int avarias) const;
-        void inserirPorTrabalho(list<Motor*>& destino, Motor* motor) const;
+    /**
+     * @brief Destrutor virtual da classe Fabrica. Liberta toda a memória alocada.
+     */
+    virtual ~Fabrica();
 
-    public:
-        explicit Fabrica(User* ut);
-        ~Fabrica();
+    /** @brief Carrega as definições, motores e sensores a partir de um ficheiro XML. */
+    bool Load(const string &ficheiro);
 
-        Fabrica(const Fabrica& outra) = delete;
-        Fabrica& operator=(const Fabrica& outra) = delete;
+    /** @brief Adiciona um novo utilizador à fábrica. */
+    bool Add(User *ut);
 
-        bool Load(const string& ficheiro);
-        bool Add(User* ut);
-        bool Add(Motor* m);
-        /**
-        * @brief Adiciona um sensor a fabrica.
-        * @param s Ponteiro para o sensor. A fabrica fica dona do ponteiro se devolver true.
-        * @return true se adicionado; false se NULL, sem permissao, posicao invalida ou ID duplicado.
-        */
-        bool Add(Sensor* s);
+    /** @brief Adiciona um novo motor à fábrica, validando ID e posição. */
+    bool Add(Motor *m);
 
-        /**
-        * @brief Remove um utilizador pelo ID. Apenas o ADMIN pode remover.
-        * @param id Identificador do utilizador a remover.
-        * @return true se removido, false se sem permissao ou nao encontrado.
-        */
-        bool RemoverUtilizador(int id);
+    /** @brief Adiciona um novo sensor à fábrica, validando ID e posição. */
+    bool Add(Sensor *s);
 
-        /**
-        * @brief Remove um motor pelo ID. Apenas o ADMIN pode remover.
-        * @param id Identificador do motor a remover.
-        * @return true se removido, false se sem permissao ou nao encontrado.
-        */
-        bool RemoverMotor(int id);
+    /** @brief Remove um motor ou sensor pelo seu ID (requer permissão de ADMIN). */
+    bool Remover(int id);
 
-        void Listar(ostream& f = cout) const;
-        void Desligar(int id_motor);
+    /** @brief Define o utilizador atualmente ativo no sistema. */
+    void SetUserAtual(User *ut);
 
-        /**
-        * @brief Reinicia um motor (RESTART), se o utilizador tiver permissao RUN.
-        *
-        * Um motor AVARIADO nao pode ser reiniciado; so a manutencao o recupera.
-        * @param id_motor Identificador do motor.
-        */
-        void ReiniciarMotor(int id_motor);
+    /** @brief Obtém o utilizador atualmente ativo no sistema. */
+    User* GetUserAtual() const;
 
-        ESTADO_MOTOR Get_Estado(int id_motor) const;
-        list<Motor*>* Listar_Tipo(string Tipo, ostream& f = cout) const;
-        bool Manutencao();
-        list<string>* Ranking_Dos_Fracos() const;
-        list<Motor*>* Ranking_Dos_Mais_Trabalhadores() const;
-        void Relatorio(string fich_xml) const;
-        int Aviso_Humidade(list<Motor*>& lm);
-        int Aviso_Fumo(list<Motor*>& lm, string fich_video);
-        int Aviso_Luz(string fich_video);
-        void Aviso_Missel(string fvideo, string festado = "Estado.txt");
-        void Listagem_HTML(string fich_html) const;
+    /** @brief Lista o estado atual de todos os motores e sensores da fábrica. */
+    void Listar(ostream &f = std::cout);
 
-        int GetCampoX() const;
-        int GetCampoY() const;
+    /** @brief Liga (coloca em START) um motor específico pelo seu ID. */
+    bool Ligar(int id_motor);
 
-        /**
-        * @brief Coloca um motor em START, se o utilizador tiver permissao RUN.
-        *
-        * Nao faz nada se o motor nao existir ou o utilizador nao puder usar RUN.
-        * @param id_motor Identificador do motor.
-        */
-        void Arrancar(int id_motor);
+    /** @brief Desliga (coloca em STOP) um motor específico pelo seu ID. */
+    void Desligar(int id_motor);
 
-        /**
-        * @brief Executa um passo de simulacao.
-        *
-        * Por cada motor em START passa a RUN se a fabrica estiver aberta.
-        * Motores em RUN aquecem, acumulam tempo de trabalho e podem avariar.
-        * Motores em STOP arrefecem.
-        * O gestor e avisado quando um motor entra em AMARELO ou VERMELHO.
-        * Os sensores sao actualizados com o estado dos motores e a hora.
-        *
-        * @param minutoAtual Minuto do dia simulado (0-1439).
-        * @param horaAtual   Hora simulada (0-23).
-        * @param minutosPasso Duracao do passo em minutos simulados (default 10).
-        * @param grausPasso   Aquecimento por passo em RUN (default 2.0).
-        * @param arrefPasso   Arrefecimento por passo em STOP (default 1.5).
-        */
-        void PassoSimulacao(int minutoAtual, int horaAtual,
-                            int minutosPasso = 10, double grausPasso = 2.0, double arrefPasso = 1.5);
+    /** @brief Obtém o estado operacional atual de um motor. */
+    ESTADO_MOTOR Get_Estado(int id_motor);
 
-        /**
-        * @brief Verifica todos os sensores e activa os avisos quando disparam pela primeira vez.
-        *
-        * Chama Aviso_Humidade, Aviso_Fumo, Aviso_Luz ou Aviso_Missel consoante o tipo.
-        * So activa o aviso no primeiro passo em que o sensor entra em aviso (Disparou()).
-        *
-        * @param desligados Lista preenchida com todos os motores desligados neste passo.
-        */
-        void VerificarAvisosSensores(list<Motor*>& desligados);
+    /** @brief Lista e devolve todos os motores de um determinado tipo. */
+    list<Motor*> *Listar_Tipo(string Tipo, ostream &f = std::cout);
 
-        /**
-        * @brief Reinicia o consumo diario de todos os motores.
-        *
-        * Deve ser chamado no virar do dia simulado.
-        */
-        void ReiniciarConsumoDia();
+    /** @brief Avança um passo (10 minutos) na simulação completa da fábrica. */
+    void StepSimulacao();
 
-        /**
-        * @brief Troca o utilizador actual por um novo.
-        *
-        * O utilizador anterior e apagado se nao estiver na lista de utilizadores.
-        * A fabrica fica dona do novo ponteiro.
-        * @param novo Novo utilizador. NULL e ignorado.
-        */
-        void SetUtilizadorAtual(User* novo);
+    /** @brief Executa a manutenção geral de todos os motores e sensores. */
+    bool Manutencao();
+
+    /** @brief Devolve as marcas ordenadas da que regista mais avarias para a mais fiável. */
+    list<string> *Ranking_Dos_Fracos();
+
+    /** @brief Devolve os motores ordenados por maior tempo de trabalho acumulado. */
+    list<Motor*> *Ranking_Dos_Mais_Trabalhadores();
+
+    /** @brief Exporta o estado atual da fábrica para um ficheiro XML. */
+    void Relatorio(string fich_xml);
+
+    /** @brief Exporta uma listagem formatada em tabela HTML do estado atual da fábrica. */
+    void Listagem_HTML(string fich_html);
+
+    /** @brief Verifica sensores de humidade em aviso e desliga motores na vizinhança. */
+    int Aviso_Humidade(list<Motor*> &lm);
+
+    /** @brief Verifica sensores de fumo/fogo em aviso, desliga motores e gera vídeo de saída. */
+    int Aviso_Fumo(list<Motor*> &lm, string fich_video);
+
+    /** @brief Verifica sensores de luz em aviso e gera vídeo de regresso a casa. */
+    int Aviso_Luz(string fich_video);
+
+    /** @brief Verifica alerta de míssil, guarda estado, desliga motores e gera vídeo de abrigo. */
+    void Aviso_Missel(string fvideo, string festado = "Estado.txt");
+
+    /** @brief Obtém a hora atual da simulação. */
+    int GetHoraSimulada() const { return horaSimulada; }
+
+    /** @brief Obtém o minuto atual da simulação. */
+    int GetMinutoSimulado() const { return minutoSimulado; }
+
+    /** @brief Indica se a fábrica está ativa ou foi encerrada por emergência. */
+    bool EstaAtiva() const { return fabricaAtiva; }
 };
 
-#endif
+#endif // FABRICA_H

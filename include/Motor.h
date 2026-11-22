@@ -1,141 +1,106 @@
+/**
+ * @file Motor.h
+ * @brief Declaração da classe base Motor, derivada de Dispositivo.
+ */
+
 #ifndef MOTOR_H
 #define MOTOR_H
 
-#include "Dispositivo.h"
+#include <string>
+#include "Dispositivos.h"
 #include "Tipos.h"
 
-#include <string>
-
-using namespace std;
-
 /**
- * @file Motor.h
- * @brief Motor da fabrica.
- *
- * Campos: ID, MARCA, CONSUMO_HORA, TEMPERATURA_AVISO, TEMPERATURA_PARAGEM,
- * PROBABILIDADE_AVARIA, mais o tipo, a posicao (X, Y) e o estado.
- *
- * O tipo e uma cadeia (por exemplo "Esteira"). Um motor concreto pode
- * derivar desta classe e reimplementar RUN, START, RESTART, STOP e
- * ESTOU_QUENTE. A implementacao base ja cumpre as regras do enunciado.
- *
- * A classe de temperatura do proprio motor depende dos seus limiares:
- * abaixo de TEMPERATURA_AVISO fica VERDE, entre o aviso e a paragem
- * fica AMARELO, e a partir da paragem fica VERMELHO e passa a STOP.
- * Os intervalos globais do XML ficam na fabrica e servem a manutencao.
- *
- * Transicoes:
- * STOP -> START -> RUN -> STOP.
- * AVARIADO so sai com RESTART, e apenas se nao estiver VERMELHO.
- *
- * Dentro desta classe os metodos chamam-se STOP, START e RUN, por isso
- * o estado correspondente escreve-se ::STOP, ::START e ::RUN.
+ * @class Motor
+ * @brief Classe base para todos os motores da fábrica.
  */
-class Motor : public Dispositivo
-{
-    private:
-        string tipo;
-        double consumoHora;
-        double temperaturaAviso;
-        double temperaturaParagem;
-        double temperaturaAtual;
-        double consumoDia;
-        int tempoTrabalho;
-        ESTADO_MOTOR estado; ///< STOP, START, RUN ou AVARIADO.
+class Motor : public Dispositivo {
+protected:
+    string tipo;                ///< Tipo específico do motor (ex.: "MCOMBUSTAO", "MELETRICO", "MINDUCAO")
+    double consumoHora;         ///< Consumo energético do motor por hora (em kWh)
+    double consumoDia;          ///< Consumo energético acumulado durante o dia atual
+    double temperaturaAtual;    ///< Temperatura atual de funcionamento do motor (em graus Celsius)
+    double temperaturaAviso;    ///< Limiar de temperatura para entrada na zona AMARELA (aviso ao gestor)
+    double temperaturaParagem;  ///< Limiar de temperatura para entrada na zona VERMELHA (paragem automática)
+    int tempoTrabalho;          ///< Tempo total acumulado de trabalho do motor (em minutos)
+    ESTADO_MOTOR estado;        ///< Estado operacional atual do motor (STOP, START, RUN ou AVARIADO)
 
-        /**
-        * @brief Indica se a temperatura ja chegou a paragem.
-        * @return true quando a classe actual e VERMELHO.
-        */
-        bool estaEmPerigo() const;
+public:
+    /**
+     * @brief Construtor da classe Motor.
+     * @param id Identificador único do motor.
+     * @param tipo Designação do tipo de motor.
+     * @param marca Marca do fabricante do motor.
+     * @param consumoHora Consumo energético por hora de funcionamento.
+     * @param tempAviso Temperatura a partir da qual é emitido aviso (zona AMARELA).
+     * @param tempParagem Temperatura a partir da qual o motor pára por segurança (zona VERMELHA).
+     * @param probAvaria Probabilidade de avaria por hora (0.0 a 1.0).
+     * @param x Coordenada X da localização na fábrica.
+     * @param y Coordenada Y da localização na fábrica.
+     */
+    Motor(int id, const string& tipo, const string& marca,
+          double consumoHora, double tempAviso, double tempParagem,
+          double probAvaria, int x, int y);
 
-    public:
-        Motor(int id, const string& tipo, const string& marca, double consumoHora,
-              double temperaturaAviso, double temperaturaParagem, double probabilidadeAvaria,
-              int posX, int posY);
-        virtual ~Motor();
+    /**
+     * @brief Destrutor virtual da classe Motor.
+     */
+    virtual ~Motor();
 
-        virtual void RUN();
-        virtual void START();
-        virtual void RESTART();
-        virtual void STOP();
+    /** @brief Obtém o tipo específico do motor. */
+    virtual string GetTipo() const;
 
-        /**
-        * @brief Classifica a temperatura e, se estiver VERMELHO, poe o motor em STOP.
-        */
-        virtual CLASSE_TEMPERATURA ESTOU_QUENTE();
+    /** @brief Obtém o estado operacional atual do motor. */
+    ESTADO_MOTOR GetEstado() const;
 
-        /**
-        * @brief Classifica a temperatura sem alterar o estado.
-        */
-        CLASSE_TEMPERATURA GetClasseTemperatura() const;
+    /** @brief Define o estado operacional do motor. */
+    void SetEstado(ESTADO_MOTOR est);
 
-        ESTADO_MOTOR GetEstado() const;
-        string GetTipo() const;
+    /** @brief Obtém o consumo energético horário do motor. */
+    double GetConsumoHora() const;
 
-        /**
-        * @brief Devolve o intervalo VERDE do tipo deste motor.
-        *
-        * As subclasses devem reimplementar este metodo para devolver
-        * o intervalo correto do seu tipo. A base devolve {0,0}.
-        */
-        virtual IntervaloTemperatura GetIntervaloVerde() const;
+    /** @brief Obtém o consumo energético acumulado no dia atual. */
+    double GetConsumoDia() const;
 
-        /**
-        * @brief Devolve o intervalo AMARELO do tipo deste motor.
-        */
-        virtual IntervaloTemperatura GetIntervaloAmarelo() const;
+    /** @brief Obtém a temperatura atual do motor. */
+    double GetTemperaturaAtual() const;
 
-        /**
-        * @brief Devolve o intervalo VERMELHO do tipo deste motor.
-        */
-        virtual IntervaloTemperatura GetIntervaloVermelho() const;
-        double GetConsumoHora() const;
-        double GetConsumoDia() const;
-        double GetTemperaturaAviso() const;
-        double GetTemperaturaParagem() const;
-        double GetTemperaturaAtual() const;
-        int GetTempoTrabalho() const;
+    /** @brief Obtém o limiar de aviso de temperatura. */
+    double GetTemperaturaAviso() const;
 
-        /**
-        * @brief Define a temperatura actual.
-        * @param temperatura Nova temperatura.
-        */
-        void SetTemperaturaAtual(double temperatura);
+    /** @brief Obtém o limiar de paragem de temperatura. */
+    double GetTemperaturaParagem() const;
 
-        /**
-        * @brief Soma graus a temperatura actual.
-        *
-        * Metodo virtual: cada tipo de motor re-implementa a sua forma de aquecer.
-        * @param graus Valor positivo de aquecimento.
-        */
-        virtual void Aquecer(double graus);
 
-        /**
-        * @brief Tira graus a temperatura, sem descer abaixo de zero.
-        * @param graus Valor positivo de arrefecimento.
-        */
-        void Arrefecer(double graus);
+    /** @brief Define a temperatura atual do motor. */
+    void SetTemperaturaAtual(double temp);
 
-        /**
-        * @brief Poe o motor em AVARIADO e conta a avaria uma unica vez.
-        * @return false se o motor ja estava avariado.
-        */
-        bool Avariar();
+    /** @brief Obtém o tempo total de trabalho acumulado pelo motor (minutos). */
+    int GetTempoTrabalho() const;
 
-        /**
-        * @brief Limpa a avaria e, se estava AVARIADO, fica em STOP.
-        */
-        void Reparar();
+    /** @brief Reinicia o contador de consumo energético diário para zero. */
+    void ReiniciarConsumoDia();
 
-        /**
-        * @brief Acumula minutos de trabalho e o consumo correspondente.
-        * @param minutos Minutos em RUN neste passo. Valores nao positivos sao ignorados.
-        */
-        void RegistarTrabalho(int minutos);
+    /** @brief Inicia o motor (STOP -> START) se não estiver avariado nem sobreaquecido. */
+    virtual void START();
 
-        /** @brief Poe o consumo do dia a zero, no virar do dia. */
-        void ReiniciarConsumoDia();
+    /** @brief Executa um ciclo de funcionamento de 10 minutos do motor. */
+    virtual void RUN();
+
+    /** @brief Reinicia o motor (STOP seguido de START). */
+    virtual void RESTART();
+
+    /** @brief Pára o motor (coloca em STOP se não estiver avariado). */
+    virtual void STOP();
+
+    /** @brief Reduz a temperatura do motor quando parado, até ao mínimo ambiente (20 ºC). */
+    virtual void Arrefecer(double graus);
+
+    /** @brief Avalia a classe térmica atual do motor (VERDE, AMARELO ou VERMELHO). */
+    virtual CLASSE_TEMPERATURA ESTOU_QUENTE();
+
+    /** @brief Efetua a manutenção do motor (repara avarias e repõe temperatura na zona VERDE). */
+    virtual void Manutencao();
 };
 
-#endif
+#endif // MOTOR_H

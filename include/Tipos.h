@@ -1,47 +1,30 @@
+/**
+ * @file Tipos.h
+ * @brief Definição dos tipos de dados globais(estados do motor e estados da temperatura) utilizados no sistema da fábrica.
+ */
+
 #ifndef TIPOS_H
 #define TIPOS_H
 
-using namespace std;
-
 /**
- * @file Tipos.h
- * @brief Enumeracoes e intervalos partilhados pela fabrica.
- *
- * STOP, START, RUN e AVARIADO sao os estados dos motores.
- * VERDE, AMARELO e VERMELHO sao as classes de temperatura.
+ * @enum ESTADO_MOTOR
+ * @brief Representa os possíveis estados operacionais de um motor.
  */
-
-/**
- * @brief Estado de funcionamento de um motor.
- */
-enum ESTADO_MOTOR
-{
-    STOP, ///< Parado.
-    START, ///< A arrancar. O passo seguinte da simulacao passa-o a RUN, se a fabrica estiver aberta.
-    RUN, ///< Em funcionamento: aquece, consome e acumula tempo de trabalho.
-    AVARIADO ///< Avariado. So volta a STOP com manutencao ou RESTART, se nao estiver vermelho.
+enum ESTADO_MOTOR {
+    STOP,       ///< Motor parado (desligado ou em espera)
+    START,      ///< Motor pronto a arrancar (em fase de ignição/arranque)
+    RUN,        ///< Motor em funcionamento ativo
+    AVARIADO    ///< Motor inoperacional devido a avaria (requer manutenção)
 };
 
 /**
- * @brief Classe de temperatura de um motor.
+ * @enum CLASSE_TEMPERATURA
+ * @brief Classifica a zona térmica atual de um motor face aos seus limiares de segurança.
  */
-enum CLASSE_TEMPERATURA
-{
-    VERDE, ///< Abaixo da temperatura de aviso.
-    AMARELO, ///< A aquecer. O gestor e avisado.
-    VERMELHO ///< Temperatura de paragem. O gestor e avisado e o motor fica em STOP.
+enum CLASSE_TEMPERATURA {
+    VERDE,      ///< Temperatura normal de funcionamento (abaixo do limiar de aviso)
+    AMARELO,    ///< Zona de aviso (entre o limiar de aviso e o limiar de paragem)
+    VERMELHO    ///< Zona crítica/perigo (atingiu ou ultrapassou o limiar de paragem)
 };
 
-/**
- * @brief Intervalo fechado de temperatura, lido do XML.
- *
- * O minimo e o maximo vem do ficheiro de configuracao.
- * A manutencao usa o intervalo VERDE para repor a temperatura dos motores.
- */
-struct IntervaloTemperatura
-{
-        double minimo; ///< Limite inferior, inclusive.
-        double maximo; ///< Limite superior, inclusive.
-};
-
-#endif
+#endif // TIPOS_H
