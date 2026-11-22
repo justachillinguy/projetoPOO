@@ -1,6 +1,6 @@
 /**
  * @file Motor.cpp
- * @brief Implementação dos métodos da classe base Motor.
+ * @brief Implementacao dos metodos da classe base Motor.
  */
 
 #include "Motor.h"
@@ -8,21 +8,12 @@
 
 /**
  * @brief Construtor da classe Motor.
- * @param id Identificador único do motor.
- * @param tipo Designação do tipo de motor.
- * @param marca Marca do fabricante do motor.
- * @param consumoHora Consumo energético por hora de funcionamento.
- * @param tempAviso Temperatura de aviso (zona AMARELA).
- * @param tempParagem Temperatura de paragem de segurança (zona VERMELHA).
- * @param probAvaria Probabilidade de avaria por hora (0.0 a 1.0).
- * @param x Coordenada X na fábrica.
- * @param y Coordenada Y na fábrica.
  */
-Motor::Motor(int id, const string& tipo, const string& marca, double consumoHora, double tempAviso, double tempParagem,
-             double probAvaria, int x, int y)
-    : Dispositivo(id, marca, probAvaria, x, y), tipo(tipo), consumoHora(consumoHora),
-      consumoDia(0.0), temperaturaAtual(25.0), temperaturaAviso(tempAviso),
-      temperaturaParagem(tempParagem), tempoTrabalho(0), estado(ESTADO_MOTOR::STOP) {}
+Motor::Motor(int idIn, const string& tipoIn, const string& marcaIn, double consumoHoraIn, double tempAvisoIn, double tempParagemIn,
+             double probAvariaIn, int xIn, int yIn)
+    : Dispositivo(idIn, marcaIn, probAvariaIn, xIn, yIn), tipo(tipoIn), consumoHora(consumoHoraIn),
+      consumoDia(0.0), temperaturaAtual(25.0), temperaturaAviso(tempAvisoIn),
+      temperaturaParagem(tempParagemIn), tempoTrabalho(0), estado(ESTADO_MOTOR::STOP) {}
 
 /**
  * @brief Destrutor virtual da classe Motor.

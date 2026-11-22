@@ -28,19 +28,19 @@ protected:
 public:
     /**
      * @brief Construtor da classe Motor.
-     * @param id Identificador único do motor.
-     * @param tipo Designação do tipo de motor.
-     * @param marca Marca do fabricante do motor.
-     * @param consumoHora Consumo energético por hora de funcionamento.
-     * @param tempAviso Temperatura a partir da qual é emitido aviso (zona AMARELA).
-     * @param tempParagem Temperatura a partir da qual o motor pára por segurança (zona VERMELHA).
-     * @param probAvaria Probabilidade de avaria por hora (0.0 a 1.0).
-     * @param x Coordenada X da localização na fábrica.
-     * @param y Coordenada Y da localização na fábrica.
+     * @param idIn Identificador único do motor.
+     * @param tipoIn Designação do tipo de motor.
+     * @param marcaIn Marca do fabricante do motor.
+     * @param consumoHoraIn Consumo energético por hora de funcionamento.
+     * @param tempAvisoIn Temperatura a partir da qual é emitido aviso (zona AMARELA).
+     * @param tempParagemIn Temperatura a partir da qual o motor pára por segurança (zona VERMELHA).
+     * @param probAvariaIn Probabilidade de avaria por hora (0.0 a 1.0).
+     * @param xIn Coordenada X da localização na fábrica.
+     * @param yIn Coordenada Y da localização na fábrica.
      */
-    Motor(int id, const string& tipo, const string& marca,
-          double consumoHora, double tempAviso, double tempParagem,
-          double probAvaria, int x, int y);
+    Motor(int idIn, const string& tipoIn, const string& marcaIn,
+          double consumoHoraIn, double tempAvisoIn, double tempParagemIn,
+          double probAvariaIn, int xIn, int yIn);
 
     /**
      * @brief Destrutor virtual da classe Motor.
@@ -70,7 +70,6 @@ public:
 
     /** @brief Obtém o limiar de paragem de temperatura. */
     double GetTemperaturaParagem() const;
-
 
     /** @brief Define a temperatura atual do motor. */
     void SetTemperaturaAtual(double temp);
@@ -103,4 +102,4 @@ public:
     virtual void Manutencao();
 };
 
-#endif // MOTOR_H
+#endif

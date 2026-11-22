@@ -27,13 +27,13 @@ protected:
 public:
     /**
      * @brief Construtor da classe Dispositivo.
-     * @param id Identificador único do dispositivo.
-     * @param marca Marca do fabricante do dispositivo.
-     * @param probAvaria Probabilidade de avaria por hora (0.0 a 1.0).
-     * @param x Coordenada X da localização na fábrica.
-     * @param y Coordenada Y da localização na fábrica.
+     * @param idIn Identificador único do dispositivo.
+     * @param marcaIn Marca do fabricante do dispositivo.
+     * @param probAvariaIn Probabilidade de avaria por hora (0.0 a 1.0).
+     * @param xIn Coordenada X da localização na fábrica.
+     * @param yIn Coordenada Y da localização na fábrica.
      */
-    Dispositivo(int id, const string& marca, double probAvaria, int x, int y);
+    Dispositivo(int idIn, const string& marcaIn, double probAvariaIn, int xIn, int yIn);
 
     /**
      * @brief Destrutor virtual da classe Dispositivo.
@@ -99,4 +99,4 @@ public:
     virtual string GetTipo() const = 0;
 };
 
-#endif // DISPOSITIVOS_H
+#endif

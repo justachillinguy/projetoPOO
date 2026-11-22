@@ -1,7 +1,7 @@
 #include "Users.h"
 
-User::User(int id, const string& nome)
-    : id(id), nome(nome) {}
+User::User(int idIn, const string& nomeIn)
+    : id(idIn), nome(nomeIn) {}
 
 User::~User() {}
 

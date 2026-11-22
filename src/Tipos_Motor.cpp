@@ -1,9 +1,8 @@
 #include "Tipos_Motor.h"
 
-// ==================== MOTOR COMBUSTAO ====================
-MotorCombustao::MotorCombustao(int id, const string& marca, double consumoHora,
-                               double tempAviso, double tempParagem, double probAvaria, int x, int y)
-    : Motor(id, "MCOMBUSTAO", marca, consumoHora, tempAviso, tempParagem, probAvaria, x, y) {}
+MotorCombustao::MotorCombustao(int idIn, const string& marcaIn, double consumoHoraIn,
+                               double tempAvisoIn, double tempParagemIn, double probAvariaIn, int xIn, int yIn)
+    : Motor(idIn, "MCOMBUSTAO", marcaIn, consumoHoraIn, tempAvisoIn, tempParagemIn, probAvariaIn, xIn, yIn) {}
 
 MotorCombustao::~MotorCombustao() {}
 
@@ -24,10 +23,9 @@ CLASSE_TEMPERATURA MotorCombustao::ESTOU_QUENTE() {
     return Motor::ESTOU_QUENTE();
 }
 
-// ==================== MOTOR ELETRICO ====================
-MotorEletrico::MotorEletrico(int id, const string& marca, double consumoHora,
-                             double tempAviso, double tempParagem, double probAvaria, int x, int y)
-    : Motor(id, "MELETRICO", marca, consumoHora, tempAviso, tempParagem, probAvaria, x, y) {}
+MotorEletrico::MotorEletrico(int idIn, const string& marcaIn, double consumoHoraIn,
+                             double tempAvisoIn, double tempParagemIn, double probAvariaIn, int xIn, int yIn)
+    : Motor(idIn, "MELETRICO", marcaIn, consumoHoraIn, tempAvisoIn, tempParagemIn, probAvariaIn, xIn, yIn) {}
 
 MotorEletrico::~MotorEletrico() {}
 
@@ -48,10 +46,9 @@ CLASSE_TEMPERATURA MotorEletrico::ESTOU_QUENTE() {
     return Motor::ESTOU_QUENTE();
 }
 
-// ==================== MOTOR INDUCAO ====================
-MotorInducao::MotorInducao(int id, const string& marca, double consumoHora,
-                           double tempAviso, double tempParagem, double probAvaria, int x, int y)
-    : Motor(id, "MINDUCAO", marca, consumoHora, tempAviso, tempParagem, probAvaria, x, y) {}
+MotorInducao::MotorInducao(int idIn, const string& marcaIn, double consumoHoraIn,
+                           double tempAvisoIn, double tempParagemIn, double probAvariaIn, int xIn, int yIn)
+    : Motor(idIn, "MINDUCAO", marcaIn, consumoHoraIn, tempAvisoIn, tempParagemIn, probAvariaIn, xIn, yIn) {}
 
 MotorInducao::~MotorInducao() {}
 

@@ -119,7 +119,7 @@ bool ExecutarAcaoEscolhida(Fabrica& fabrica, Relogio& relogio) {
                 cout << "Tipo de motor (MCOMBUSTAO / MELETRICO / MINDUCAO): ";
                 cin >> tipoMotorNome;
                 for (size_t i = 0; i < tipoMotorNome.length(); i++) {
-                    tipoMotorNome[i] = toupper(tipoMotorNome[i]);
+                    tipoMotorNome[i] = static_cast<char>(toupper(static_cast<unsigned char>(tipoMotorNome[i])));
                 }
 
                 if (tipoMotorNome != "MCOMBUSTAO" && tipoMotorNome != "MELETRICO" && tipoMotorNome != "MINDUCAO") {
@@ -217,15 +217,12 @@ bool ExecutarAcaoEscolhida(Fabrica& fabrica, Relogio& relogio) {
 int main() {
     srand((unsigned int)time(NULL));
 
-    // Utilizador administrador que inicia a fabrica
     Admin* gestorFabrica = new Admin(1, "Gestor");
     Fabrica fabrica(gestorFabrica);
 
-    // Relogio: velocidade inicial 600 (1 segundo real = 600 segundos simulados = 10 min de fabrica)
     Relogio relogioSimulacao(600);
     long segundosUltimoPassoSimulado = 0;
 
-    // Tenta carregar o XML da fabrica
     bool carregouConfiguracao = fabrica.Load("fabrica.xml");
     if (!carregouConfiguracao) carregouConfiguracao = fabrica.Load("ExemploParaSimuladorXML.xml");
     if (!carregouConfiguracao) carregouConfiguracao = fabrica.Load("../../fabrica.xml");
@@ -252,9 +249,8 @@ int main() {
     bool avisoParadaJaMostrado = false;
 
     while (simuladorAtivo) {
-        // Deteta se o utilizador pressionou uma tecla sem bloquear a execucao
         if (_kbhit()) {
-            char teclaPressionada = _getch();
+            int teclaPressionada = _getch();
             if (teclaPressionada == 'm' || teclaPressionada == 'M') {
                 if (!ExecutarAcaoEscolhida(fabrica, relogioSimulacao)) {
                     simuladorAtivo = false;
@@ -267,7 +263,6 @@ int main() {
             }
         }
 
-        // Cada passo simulado representa 600 segundos (10 minutos)
         long segundosSimuladosAtuais = relogioSimulacao.GetSegundosSimulados();
         while (segundosSimuladosAtuais - segundosUltimoPassoSimulado >= 600) {
             segundosUltimoPassoSimulado += 600;

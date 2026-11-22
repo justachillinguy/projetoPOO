@@ -1,8 +1,7 @@
 #include "Tipos_Users.h"
 
-// ==================== ADMIN ====================
-Admin::Admin(int id, const string& nome)
-    : User(id, nome) {}
+Admin::Admin(int idIn, const string& nomeIn)
+    : User(idIn, nomeIn) {}
 
 Admin::~Admin() {}
 
@@ -13,9 +12,8 @@ bool Admin::PodeRun() const { return true; }
 bool Admin::PodeManutencao() const { return true; }
 string Admin::GetTipo() const { return "ADMIN"; }
 
-// ==================== NORMAL ====================
-Normal::Normal(int id, const string& nome)
-    : User(id, nome) {}
+Normal::Normal(int idIn, const string& nomeIn)
+    : User(idIn, nomeIn) {}
 
 Normal::~Normal() {}
 
@@ -26,9 +24,8 @@ bool Normal::PodeRun() const { return true; }
 bool Normal::PodeManutencao() const { return true; }
 string Normal::GetTipo() const { return "NORMAL"; }
 
-// ==================== VISITANTE ====================
-Visitante::Visitante(int id, const string& nome)
-    : User(id, nome) {}
+Visitante::Visitante(int idIn, const string& nomeIn)
+    : User(idIn, nomeIn) {}
 
 Visitante::~Visitante() {}
 

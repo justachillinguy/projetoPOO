@@ -84,10 +84,9 @@ private:
 public:
     /**
      * @brief Construtor da classe Fabrica.
-     * @param ut Utilizador inicial associado à sessão.
+     * @param utilizadorInicial Utilizador inicial associado à sessão.
      */
-    Fabrica(User *ut);
-
+    Fabrica(User *utilizadorInicial);
 
     bool ExisteMotor(int id) const;
 
@@ -172,4 +171,4 @@ public:
     bool EstaAtiva() const { return fabricaAtiva; }
 };
 
-#endif // FABRICA_H
+#endif

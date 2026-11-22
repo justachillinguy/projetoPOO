@@ -90,7 +90,7 @@ public:
  */
 class SensorMissel : public Sensor {
 public:
-    SensorMissel(int id, const string& marca, double valor, double probAvaria, int x, int y);
+    SensorMissel(int idIn, const string& marcaIn, double valorIn, double probAvariaIn, int xIn, int yIn);
     double GetLimiar() const { return 1.0; }
     virtual ~SensorMissel();
 
@@ -99,4 +99,4 @@ public:
     virtual string GetTipo() const;
 };
 
-#endif // TIPOS_SENSORES_H
+#endif

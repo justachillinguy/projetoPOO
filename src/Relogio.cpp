@@ -1,13 +1,12 @@
 /**
  * @file Relogio.cpp
- * @brief Implementação dos métodos da classe Relogio.
+ * @brief Implementacao dos metodos da classe Relogio.
  */
 
 #include "Relogio.h"
 
 /**
  * @brief Construtor da classe Relogio.
- * @param _velocidade Velocidade inicial do relógio.
  */
 Relogio::Relogio(int _velocidade) {
     tInicio = time(NULL);
@@ -25,7 +24,7 @@ Relogio::Relogio(int _velocidade) {
 Relogio::~Relogio() {}
 
 /**
- * @brief Obtém o total de segundos simulados decorridos desde o arranque do relógio.
+ * @brief Obtem o total de segundos simulados decorridos desde o arranque do relogio.
  * @return Segundos simulados decorridos.
  */
 long Relogio::GetSegundosSimulados() const {
@@ -34,7 +33,7 @@ long Relogio::GetSegundosSimulados() const {
 }
 
 /**
- * @brief Calcula o tempo atual da simulação somando ao início o tempo simulado decorrido.
+ * @brief Calcula o tempo atual da simulacao somando ao inicio o tempo simulado decorrido.
  * @return Timestamp simulado atual.
  */
 time_t Relogio::GetTempo() const {
@@ -42,8 +41,7 @@ time_t Relogio::GetTempo() const {
 }
 
 /**
- * @brief Altera a velocidade da simulação acumulando o tempo simulado anterior.
- * @param vel Novo valor de velocidade (deve ser >= 1).
+ * @brief Altera a velocidade da simulacao acumulando o tempo simulado anterior.
  */
 void Relogio::MudarVelocidade(int vel) {
     if (vel >= 1) {
@@ -54,7 +52,7 @@ void Relogio::MudarVelocidade(int vel) {
 }
 
 /**
- * @brief Obtém a velocidade atual configurada no relógio.
+ * @brief Obtem a velocidade atual configurada no relogio.
  * @return Fator de velocidade atual.
  */
 int Relogio::GetVelocidade() const {

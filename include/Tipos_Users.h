@@ -8,7 +8,7 @@
  */
 class Admin : public User {
 public:
-    Admin(int id, const string& nome);
+    Admin(int idIn, const string& nomeIn);
     virtual ~Admin();
 
     virtual bool PodeAdicionar() const;
@@ -24,7 +24,7 @@ public:
  */
 class Normal : public User {
 public:
-    Normal(int id, const string& nome);
+    Normal(int idIn, const string& nomeIn);
     virtual ~Normal();
 
     virtual bool PodeAdicionar() const;
@@ -40,7 +40,7 @@ public:
  */
 class Visitante : public User {
 public:
-    Visitante(int id, const string& nome);
+    Visitante(int idIn, const string& nomeIn);
     virtual ~Visitante();
 
     virtual bool PodeAdicionar() const;
@@ -51,4 +51,4 @@ public:
     virtual string GetTipo() const;
 };
 
-#endif // TIPOS_USERS_H
+#endif

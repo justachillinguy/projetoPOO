@@ -1,22 +1,16 @@
 /**
  * @file Dispositivos.cpp
- * @brief Implementação dos métodos da classe base abstrata Dispositivo.
+ * @brief Implementacao dos metodos da classe base abstrata Dispositivo.
  */
 
 #include "Dispositivos.h"
 
 /**
  * @brief Construtor da classe Dispositivo.
- * Inicializa os atributos do dispositivo e define o estado inicial como operacional (sem avarias).
- * @param id- Identificador único do dispositivo.
- * @param marca- Marca do fabricante do dispositivo.
- * @param probAvaria- Probabilidade de avaria por hora (0.0 a 1.0).
- * @param x- Coordenada X da localização na fábrica.
- * @param y- Coordenada Y da localização na fábrica.
  */
-Dispositivo::Dispositivo(int id, const string& marca, double probAvaria, int x, int y)
-    : id(id), marca(marca), probabilidadeAvaria(probAvaria),
-      x(x), y(y), avariado(false), totalAvarias(0) {}
+Dispositivo::Dispositivo(int idIn, const string& marcaIn, double probAvariaIn, int xIn, int yIn)
+    : id(idIn), marca(marcaIn), probabilidadeAvaria(probAvariaIn),
+      x(xIn), y(yIn), avariado(false), totalAvarias(0) {}
 
 /**
  * @brief Destrutor virtual da classe Dispositivo.

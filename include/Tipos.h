@@ -27,4 +27,4 @@ enum CLASSE_TEMPERATURA {
     VERMELHO    ///< Zona crítica/perigo (atingiu ou ultrapassou o limiar de paragem)
 };
 
-#endif // TIPOS_H
+#endif

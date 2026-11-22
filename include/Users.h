@@ -14,13 +14,12 @@ protected:
     string nome;
 
 public:
-    User(int id, const string& nome);
+    User(int idIn, const string& nomeIn);
     virtual ~User();
 
     int GetId() const;
     string GetNome() const;
 
-    // Permissoes virtuais (re-implementadas por Admin, Normal e Visitante)
     virtual bool PodeAdicionar() const = 0;
     virtual bool PodeRemover() const = 0;
     virtual bool PodeListar() const = 0;
@@ -29,4 +28,4 @@ public:
     virtual string GetTipo() const = 0;
 };
 
-#endif // USERS_H
+#endif

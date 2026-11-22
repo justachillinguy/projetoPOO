@@ -1,8 +1,7 @@
 #include "Tipos_Sensores.h"
 
-// ==================== SENSOR LUZ ====================
-SensorLuz::SensorLuz(int id, const string& marca, double valor, double probAvaria, int x, int y, double limiar)
-    : Sensor(id, marca, valor, probAvaria, x, y), limiar(limiar) {}
+SensorLuz::SensorLuz(int idIn, const string& marcaIn, double valorIn, double probAvariaIn, int xIn, int yIn, double limiarIn)
+    : Sensor(idIn, marcaIn, valorIn, probAvariaIn, xIn, yIn), limiar(limiarIn) {}
 
 SensorLuz::~SensorLuz() {}
 
@@ -18,9 +17,8 @@ string SensorLuz::GetTipo() const {
     return "LUZ";
 }
 
-// ==================== SENSOR HUMIDADE ====================
-SensorHumidade::SensorHumidade(int id, const string& marca, double valor, double probAvaria, int x, int y, double limiar, int raio)
-    : Sensor(id, marca, valor, probAvaria, x, y), limiar(limiar), raioVizinhanca(raio) {}
+SensorHumidade::SensorHumidade(int idIn, const string& marcaIn, double valorIn, double probAvariaIn, int xIn, int yIn, double limiarIn, int raioIn)
+    : Sensor(idIn, marcaIn, valorIn, probAvariaIn, xIn, yIn), limiar(limiarIn), raioVizinhanca(raioIn) {}
 
 SensorHumidade::~SensorHumidade() {}
 
@@ -41,9 +39,8 @@ string SensorHumidade::GetTipo() const {
     return "HUMIDADE";
 }
 
-// ==================== SENSOR TEMPERATURA ====================
-SensorTemperatura::SensorTemperatura(int id, const string& marca, double valor, double probAvaria, int x, int y, double limiar)
-    : Sensor(id, marca, valor, probAvaria, x, y), limiar(limiar) {}
+SensorTemperatura::SensorTemperatura(int idIn, const string& marcaIn, double valorIn, double probAvariaIn, int xIn, int yIn, double limiarIn)
+    : Sensor(idIn, marcaIn, valorIn, probAvariaIn, xIn, yIn), limiar(limiarIn) {}
 
 SensorTemperatura::~SensorTemperatura() {}
 
@@ -59,9 +56,8 @@ string SensorTemperatura::GetTipo() const {
     return "TEMPERATURA";
 }
 
-// ==================== SENSOR FUMO ====================
-SensorFumo::SensorFumo(int id, const string& marca, double valor, double probAvaria, int x, int y, double limiar)
-    : Sensor(id, marca, valor, probAvaria, x, y), limiar(limiar) {}
+SensorFumo::SensorFumo(int idIn, const string& marcaIn, double valorIn, double probAvariaIn, int xIn, int yIn, double limiarIn)
+    : Sensor(idIn, marcaIn, valorIn, probAvariaIn, xIn, yIn), limiar(limiarIn) {}
 
 SensorFumo::~SensorFumo() {}
 
@@ -77,9 +73,8 @@ string SensorFumo::GetTipo() const {
     return "FUMO";
 }
 
-// ==================== SENSOR FOGO ====================
-SensorFogo::SensorFogo(int id, const string& marca, double valor, double probAvaria, int x, int y, double limiar)
-    : Sensor(id, marca, valor, probAvaria, x, y), limiar(limiar) {}
+SensorFogo::SensorFogo(int idIn, const string& marcaIn, double valorIn, double probAvariaIn, int xIn, int yIn, double limiarIn)
+    : Sensor(idIn, marcaIn, valorIn, probAvariaIn, xIn, yIn), limiar(limiarIn) {}
 
 SensorFogo::~SensorFogo() {}
 
@@ -95,9 +90,8 @@ string SensorFogo::GetTipo() const {
     return "FOGO";
 }
 
-// ==================== SENSOR MISSEL ====================
-SensorMissel::SensorMissel(int id, const string& marca, double valor, double probAvaria, int x, int y)
-    : Sensor(id, marca, valor, probAvaria, x, y) {}
+SensorMissel::SensorMissel(int idIn, const string& marcaIn, double valorIn, double probAvariaIn, int xIn, int yIn)
+    : Sensor(idIn, marcaIn, valorIn, probAvariaIn, xIn, yIn) {}
 
 SensorMissel::~SensorMissel() {}
 

@@ -8,8 +8,8 @@
  */
 class MotorCombustao : public Motor {
 public:
-    MotorCombustao(int id, const string& marca, double consumoHora,
-                   double tempAviso, double tempParagem, double probAvaria, int x, int y);
+    MotorCombustao(int idIn, const string& marcaIn, double consumoHoraIn,
+                   double tempAvisoIn, double tempParagemIn, double probAvariaIn, int xIn, int yIn);
     virtual ~MotorCombustao();
 
     virtual void RUN();
@@ -21,8 +21,8 @@ public:
  */
 class MotorEletrico : public Motor {
 public:
-    MotorEletrico(int id, const string& marca, double consumoHora,
-                  double tempAviso, double tempParagem, double probAvaria, int x, int y);
+    MotorEletrico(int idIn, const string& marcaIn, double consumoHoraIn,
+                  double tempAvisoIn, double tempParagemIn, double probAvariaIn, int xIn, int yIn);
     virtual ~MotorEletrico();
 
     virtual void RUN();
@@ -34,12 +34,12 @@ public:
  */
 class MotorInducao : public Motor {
 public:
-    MotorInducao(int id, const string& marca, double consumoHora,
-                 double tempAviso, double tempParagem, double probAvaria, int x, int y);
+    MotorInducao(int idIn, const string& marcaIn, double consumoHoraIn,
+                 double tempAvisoIn, double tempParagemIn, double probAvariaIn, int xIn, int yIn);
     virtual ~MotorInducao();
 
     virtual void RUN();
     virtual CLASSE_TEMPERATURA ESTOU_QUENTE();
 };
 
-#endif // TIPOS_MOTORES_H
+#endif

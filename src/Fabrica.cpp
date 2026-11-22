@@ -4,19 +4,14 @@
  */
 
 #include "Fabrica.h"
-
 #include <fstream>
 #include <sstream>
 #include <cmath>
 #include <cstdlib>
 #include <vector>
 
-
-// ==================== CONSTRUTOR E DESTRUTOR ====================
-
 /**
  * @brief Construtor da classe Fabrica.
- * @param utilizadorInicial Utilizador com sessao iniciada (por defeito Admin/Gestor).
  */
 Fabrica::Fabrica(User *utilizadorInicial)
     : nome("Fabrica"), horaAbertura(8), horaFecho(16), vizinhancaAviso(10),
@@ -47,8 +42,6 @@ Fabrica::~Fabrica() {
     }
     utilizadores.clear();
 }
-
-// ==================== METODOS AUXILIARES PRIVADOS ====================
 
 Motor* Fabrica::ProcurarMotor(int identificador) const {
     for (list<Motor*>::const_iterator it = motores.begin(); it != motores.end(); ++it) {
@@ -102,7 +95,6 @@ void Fabrica::ExtrairParInt(const string& texto, int& primeiroValor, int& segund
 }
 
 double Fabrica::NormalizarProbabilidade(double valorProbabilidade) const {
-    // Se o valor vier em percentagem (ex.: 10 para 10%), converte para fracao [0.0, 1.0]
     if (valorProbabilidade >= 1.0) {
         return valorProbabilidade / 100.0;
     }
@@ -118,7 +110,6 @@ void Fabrica::AtualizarSensores() {
         Sensor* sensorAtual = *itSensor;
         if (sensorAtual->EstaAvariado()) continue;
 
-        // Sensores de temperatura detetam a temperatura maxima dos motores na sua vizinhanca
         if (sensorAtual->GetTipo() == "TEMPERATURA") {
             double maiorTemperaturaVizinhanca = 20.0;
             for (list<Motor*>::iterator itMotor = motores.begin(); itMotor != motores.end(); ++itMotor) {
@@ -137,7 +128,6 @@ void Fabrica::AtualizarSensores() {
 }
 
 void Fabrica::SimularAvarias() {
-    // Como a probabilidade do XML e horaria e cada passo sao 10 minutos (1/6 de hora), dividimos por 6.0
     for (list<Motor*>::iterator itMotor = motores.begin(); itMotor != motores.end(); ++itMotor) {
         Motor* motorAtual = *itMotor;
         if (!motorAtual->EstaAvariado() && motorAtual->GetEstado() == ESTADO_MOTOR::RUN) {
@@ -172,7 +162,6 @@ void Fabrica::AvancarRelogio(int minutos) {
         minutoSimulado -= 60;
         horaSimulada++;
     }
-    // Ao virar da meia-noite (novo dia), reinicia o consumo diario de todos os motores
     if (horaSimulada >= 24) {
         horaSimulada %= 24;
         for (list<Motor*>::iterator itMotor = motores.begin(); itMotor != motores.end(); ++itMotor) {
@@ -181,8 +170,6 @@ void Fabrica::AvancarRelogio(int minutos) {
         cout << "[SISTEMA] Novo dia simulado: consumo diario dos motores reiniciado a zero.\n";
     }
 }
-
-// ==================== CARREGAMENTO XML (Load) ====================
 
 bool Fabrica::Load(const string &caminhoFicheiroXML) {
     ifstream ficheiro(caminhoFicheiroXML.c_str());
@@ -195,7 +182,6 @@ bool Fabrica::Load(const string &caminhoFicheiroXML) {
     string conteudoXML = bufferTexto.str();
     ficheiro.close();
 
-    // 1. Ler o bloco de <DEFINICOES>
     string blocoDefinicoes = ExtrairTagXML(conteudoXML, "DEFINICOES");
     if (blocoDefinicoes.empty()) {
         cout << "XML invalido: seccao <DEFINICOES> nao encontrada.\n";
@@ -227,7 +213,6 @@ bool Fabrica::Load(const string &caminhoFicheiroXML) {
         ExtrairParInt(dimensoesStr, dimensaoX, dimensaoY);
     }
 
-    // Carregar limiares e probabilidades de avaria por tipo de motor
     string tiposMotores[3] = { "MELETRICO", "MCOMBUSTAO", "MINDUCAO" };
     map<string, double> limiarAvisoPorTipo;
     map<string, double> limiarParagemPorTipo;
@@ -257,7 +242,6 @@ bool Fabrica::Load(const string &caminhoFicheiroXML) {
         probAvariaPorTipo[tipoMotorNome] = NormalizarProbabilidade(atof(probAvariaStr.c_str()));
     }
 
-    // 2. Ler o bloco de <MOTORES>
     string blocoMotores = ExtrairTagXML(conteudoXML, "MOTORES");
     for (int i = 0; i < 3; i++) {
         string tipoMotorNome = tiposMotores[i];
@@ -309,7 +293,6 @@ bool Fabrica::Load(const string &caminhoFicheiroXML) {
         }
     }
 
-    // 3. Ler o bloco de <SENSORES>
     string blocoSensores = ExtrairTagXML(conteudoXML, "SENSORES");
     string tagsSensores[6] = { "SHUMIDADE", "SLUZ", "SFUMO", "SMISSIL", "STEMPERATURA", "SFOGO" };
 
@@ -361,8 +344,6 @@ bool Fabrica::Load(const string &caminhoFicheiroXML) {
 
     return true;
 }
-
-// ==================== GESTAO DE UTILIZADORES E DISPOSITIVOS ====================
 
 bool Fabrica::Add(User *novoUtilizador) {
     if (novoUtilizador == NULL) return false;
@@ -434,8 +415,6 @@ void Fabrica::SetUserAtual(User *novoUtilizadorAtual) {
 User* Fabrica::GetUserAtual() const {
     return userAtual;
 }
-
-// ==================== LISTAGEM E COMANDOS DE MOTORES ====================
 
 void Fabrica::Listar(ostream &streamSaida) {
     if (userAtual != NULL && !userAtual->PodeListar()) {
@@ -537,8 +516,6 @@ list<Motor*> *Fabrica::Listar_Tipo(string Tipo, ostream &streamSaida) {
     return listaMotoresDoTipo;
 }
 
-// ==================== SIMULACAO E MANUTENCAO ====================
-
 void Fabrica::StepSimulacao() {
     if (!fabricaAtiva) {
         cout << "[SISTEMA] Fabrica encerrada devido a alerta critico de emergencia.\n";
@@ -550,7 +527,6 @@ void Fabrica::StepSimulacao() {
     for (list<Motor*>::iterator itMotor = motores.begin(); itMotor != motores.end(); ++itMotor) {
         Motor* motorAtual = *itMotor;
 
-        // Se a fabrica estiver fechada, os motores devem estar parados e arrefecem
         if (!fabricaEstaAberta) {
             if (motorAtual->GetEstado() == ESTADO_MOTOR::START || motorAtual->GetEstado() == ESTADO_MOTOR::RUN) {
                 motorAtual->STOP();
@@ -559,15 +535,13 @@ void Fabrica::StepSimulacao() {
             continue;
         }
 
-        // Se a fabrica esta aberta:
         if (motorAtual->GetEstado() == ESTADO_MOTOR::STOP) {
             motorAtual->Arrefecer(1.0);
         } else if (motorAtual->GetEstado() == ESTADO_MOTOR::START || motorAtual->GetEstado() == ESTADO_MOTOR::RUN) {
             CLASSE_TEMPERATURA classeAntes = motorAtual->ESTOU_QUENTE();
-            motorAtual->RUN(); // Aquece 2 graus e acumula consumo e minutos de trabalho
+            motorAtual->RUN();
             CLASSE_TEMPERATURA classeDepois = motorAtual->ESTOU_QUENTE();
 
-            // Notifica o gestor quando transita para AMARELO ou VERMELHO (conforme o PDF)
             if (classeDepois == AMARELO && classeAntes != AMARELO) {
                 cout << "[AVISO GESTOR] Motor ID " << motorAtual->GetId() << " entrou na zona AMARELA!\n";
             } else if (classeDepois == VERMELHO) {
@@ -594,7 +568,6 @@ bool Fabrica::Manutencao() {
         return false;
     }
 
-    // Repoe temperatura de cada motor aleatoriamente dentro da zona VERDE do XML (conforme o PDF)
     for (list<Motor*>::iterator itMotor = motores.begin(); itMotor != motores.end(); ++itMotor) {
         Motor* motor = *itMotor;
         motor->Reparar();
@@ -612,7 +585,6 @@ bool Fabrica::Manutencao() {
         motor->SetTemperaturaAtual(temperaturaSorteada);
     }
 
-    // Repara todos os sensores avariados
     for (list<Sensor*>::iterator itSensor = sensores.begin(); itSensor != sensores.end(); ++itSensor) {
         (*itSensor)->Reparar();
     }
@@ -628,7 +600,6 @@ list<string> *Fabrica::Ranking_Dos_Fracos() {
         return NULL;
     }
 
-    // Acumula o total de avarias por marca entre motores e sensores
     map<string, int> totalAvariasPorMarca;
     for (list<Motor*>::iterator itMotor = motores.begin(); itMotor != motores.end(); ++itMotor) {
         totalAvariasPorMarca[(*itMotor)->GetMarca()] += (*itMotor)->GetTotalAvarias();
@@ -637,7 +608,6 @@ list<string> *Fabrica::Ranking_Dos_Fracos() {
         totalAvariasPorMarca[(*itSensor)->GetMarca()] += (*itSensor)->GetTotalAvarias();
     }
 
-    // Transfere para vetor para ordenar por ordem decrescente de avarias (mais avarias -> mais confiavel)
     vector<pair<string, int> > marcasOrdenadas(totalAvariasPorMarca.begin(), totalAvariasPorMarca.end());
     for (size_t i = 0; i < marcasOrdenadas.size(); i++) {
         for (size_t j = i + 1; j < marcasOrdenadas.size(); j++) {
@@ -667,7 +637,6 @@ list<Motor*> *Fabrica::Ranking_Dos_Mais_Trabalhadores() {
         Motor* motorAtual = *itMotor;
         list<Motor*>::iterator posicao = rankingOrdenado->begin();
 
-        // Insercao ordenada decrescente por tempo de trabalho acumulado
         while (posicao != rankingOrdenado->end() &&
                (*posicao)->GetTempoTrabalho() >= motorAtual->GetTempoTrabalho()) {
             ++posicao;
@@ -676,8 +645,6 @@ list<Motor*> *Fabrica::Ranking_Dos_Mais_Trabalhadores() {
     }
     return rankingOrdenado;
 }
-
-// ==================== RELATORIOS E AVISOS ====================
 
 void Fabrica::Relatorio(string caminhoFicheiroXML) {
     ofstream ficheiroXML(caminhoFicheiroXML.c_str());

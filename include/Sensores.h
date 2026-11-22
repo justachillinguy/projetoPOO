@@ -20,14 +20,14 @@ protected:
 public:
     /**
      * @brief Construtor da classe Sensor.
-     * @param id- Identificador único do sensor.
-     * @param marca- Marca do fabricante do sensor.
-     * @param valor- Valor inicial lido pelo sensor.
-     * @param probAvaria- Probabilidade de avaria por hora (0.0 a 1.0).
-     * @param x- Coordenada X da localização na fábrica.
-     * @param y- Coordenada Y da localização na fábrica.
+     * @param idIn Identificador único do sensor.
+     * @param marcaIn Marca do fabricante do sensor.
+     * @param valorIn Valor inicial lido pelo sensor.
+     * @param probAvariaIn Probabilidade de avaria por hora (0.0 a 1.0).
+     * @param xIn Coordenada X da localização na fábrica.
+     * @param yIn Coordenada Y da localização na fábrica.
      */
-    Sensor(int id, const string& marca, double valor, double probAvaria, int x, int y);
+    Sensor(int idIn, const string& marcaIn, double valorIn, double probAvariaIn, int xIn, int yIn);
 
     /**
      * @brief Destrutor virtual da classe Sensor.
@@ -76,4 +76,4 @@ public:
     virtual int GetRaioVizinhanca() const { return 0; }
 };
 
-#endif // SENSORES_H
+#endif

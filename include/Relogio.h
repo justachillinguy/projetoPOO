@@ -55,4 +55,4 @@ public:
     int GetVelocidade() const;
 };
 
-#endif // RELOGIO_H
+#endif
