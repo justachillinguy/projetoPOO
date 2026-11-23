@@ -17,6 +17,7 @@ Normal::Normal(int idIn, const string& nomeIn)
 
 Normal::~Normal() {}
 
+
 bool Normal::PodeAdicionar() const { return true; }
 bool Normal::PodeRemover() const { return false; }
 bool Normal::PodeListar() const { return true; }

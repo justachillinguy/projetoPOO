@@ -8,8 +8,8 @@
       "args": [],
       "stopAtEntry": false,
       "externalConsole": true,
-      "cwd": "c:/Users/kcampo246/Desktop/Periodo 3/POO/projeto",
-      "program": "c:/Users/kcampo246/Desktop/Periodo 3/POO/projeto/build/Debug/outDebug",
+      "cwd": "${workspaceFolder}",
+      "program": "${workspaceFolder}/build/Debug/outDebug.exe",
       "MIMode": "gdb",
       "miDebuggerPath": "gdb",
       "setupCommands": [

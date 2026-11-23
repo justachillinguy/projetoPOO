@@ -59,7 +59,7 @@ bool ExecutarAcaoEscolhida(Fabrica& fabrica, Relogio& relogio) {
         opcao = MostrarMenuPrincipal();
         if (opcao == 0) return false;
         if (opcao == 12) {
-            cout << "A retomar simulacao... (Prima 'M' para abrir o menu)\n";
+            cout << "A retomar simulacao... (Clique 'M' para abrir o menu)\n";
             return true;
         }
 

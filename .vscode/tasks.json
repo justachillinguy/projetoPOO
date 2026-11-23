@@ -1,0 +1,46 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "shell",
+      "label": "C/C++: g++ build active file",
+      "command": "g++",
+      "args": [
+        "-Wall",
+        "-Wextra",
+        "-Wpedantic",
+        "-Wshadow",
+        "-Wformat=2",
+        "-Wcast-align",
+        "-Wconversion",
+        "-Wsign-conversion",
+        "-Wnull-dereference",
+        "-g3",
+        "-O0",
+        "-std=c++11",
+        "-Iinclude",
+        "src/Dispositivos.cpp",
+        "src/Fabrica.cpp",
+        "src/Motor.cpp",
+        "src/Relogio.cpp",
+        "src/Sensores.cpp",
+        "src/Tipos_Motor.cpp",
+        "src/Tipos_Sensores.cpp",
+        "src/Tipos_Users.cpp",
+        "src/Users.cpp",
+        "main.cpp",
+        "-o",
+        "${workspaceFolder}/build/Debug/outDebug.exe"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": ["$gcc"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "detail": "Compilacao de todos os modulos do Projeto POO sem warnings"
+    }
+  ]
+}
